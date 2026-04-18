@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "name": "v2_header_basic",
+  "description": "OBS V2 header signing for GET request, no Content-MD5 or Content-Type",
+  "input": {
+    "method": "GET",
+    "bucket": "my-bucket",
+    "key": "photos/cat.jpg",
+    "content_md5": "",
+    "content_type": "",
+    "date": "Tue, 15 Jan 2024 10:30:00 GMT",
+    "obs_headers": {},
+    "access_key": "AKIAIOSFODNN7EXAMPLE",
+    "secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  },
+  "expected": {
+    "string_to_sign": "GET\n\n\nTue, 15 Jan 2024 10:30:00 GMT\n/my-bucket/photos/cat.jpg",
+    "authorization_prefix": "OBS AKIAIOSFODNN7EXAMPLE:"
+  }
+}

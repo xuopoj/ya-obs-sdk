@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "name": "v2_header_content_md5",
+  "description": "OBS V2 header signing for PUT with Content-MD5 and Content-Type",
+  "input": {
+    "method": "PUT",
+    "bucket": "my-bucket",
+    "key": "photos/cat.jpg",
+    "content_md5": "rL0Y20zC+Fzt72VPzMSk2A==",
+    "content_type": "image/jpeg",
+    "date": "Tue, 15 Jan 2024 10:30:00 GMT",
+    "obs_headers": {
+      "x-obs-storage-class": "STANDARD"
+    },
+    "access_key": "AKIAIOSFODNN7EXAMPLE",
+    "secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  },
+  "expected": {
+    "string_to_sign": "PUT\nrL0Y20zC+Fzt72VPzMSk2A==\nimage/jpeg\nTue, 15 Jan 2024 10:30:00 GMT\nx-obs-storage-class:STANDARD\n/my-bucket/photos/cat.jpg",
+    "authorization_prefix": "OBS AKIAIOSFODNN7EXAMPLE:"
+  }
+}
