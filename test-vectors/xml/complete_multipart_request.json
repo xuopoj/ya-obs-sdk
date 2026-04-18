@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "name": "complete_multipart_request",
+  "description": "Serialize CompleteMultipartUpload XML from part list",
+  "input": {
+    "parts": [
+      {"part_number": 1, "etag": "\"etag-part-1\""},
+      {"part_number": 2, "etag": "\"etag-part-2\""},
+      {"part_number": 3, "etag": "\"etag-part-3\""}
+    ]
+  },
+  "expected": {
+    "xml": "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>\"etag-part-1\"</ETag></Part><Part><PartNumber>2</PartNumber><ETag>\"etag-part-2\"</ETag></Part><Part><PartNumber>3</PartNumber><ETag>\"etag-part-3\"</ETag></Part></CompleteMultipartUpload>"
+  }
+}

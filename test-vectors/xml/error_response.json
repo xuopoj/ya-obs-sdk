@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "name": "error_response",
+  "description": "Parse OBS XML error response",
+  "input": {
+    "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><RequestId>req-abc123</RequestId><HostId>host-xyz</HostId></Error>"
+  },
+  "expected": {
+    "code": "NoSuchKey",
+    "message": "The specified key does not exist.",
+    "request_id": "req-abc123",
+    "host_id": "host-xyz"
+  }
+}

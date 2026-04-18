@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "name": "initiate_multipart_response",
+  "description": "Parse InitiateMultipartUploadResult XML",
+  "input": {
+    "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><InitiateMultipartUploadResult xmlns=\"http://obs.myhwclouds.com/doc/2015-06-30/\"><Bucket>my-bucket</Bucket><Key>large-file.zip</Key><UploadId>upload-id-12345</UploadId></InitiateMultipartUploadResult>"
+  },
+  "expected": {
+    "bucket": "my-bucket",
+    "key": "large-file.zip",
+    "upload_id": "upload-id-12345"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "name": "list_objects_response",
+  "description": "Parse ListBucketResult XML into object list",
+  "input": {
+    "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><ListBucketResult xmlns=\"http://obs.myhwclouds.com/doc/2015-06-30/\"><Name>my-bucket</Name><Prefix></Prefix><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated><Contents><Key>photo.jpg</Key><LastModified>2024-01-15T10:30:00.000Z</LastModified><ETag>\"abc123\"</ETag><Size>12345</Size></Contents><Contents><Key>video.mp4</Key><LastModified>2024-02-20T08:00:00.000Z</LastModified><ETag>\"def456\"</ETag><Size>9876543</Size></Contents></ListBucketResult>"
+  },
+  "expected": {
+    "name": "my-bucket",
+    "is_truncated": false,
+    "next_marker": null,
+    "objects": [
+      {"key": "photo.jpg", "etag": "\"abc123\"", "size": 12345, "last_modified": "2024-01-15T10:30:00+00:00"},
+      {"key": "video.mp4", "etag": "\"def456\"", "size": 9876543, "last_modified": "2024-02-20T08:00:00+00:00"}
+    ]
+  }
+}
