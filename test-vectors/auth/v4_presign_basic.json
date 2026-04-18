@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "name": "v4_presign_basic",
+  "description": "V4 presigned URL for GET request, 1 hour expiry",
+  "input": {
+    "method": "GET",
+    "url": "https://my-bucket.obs.cn-north-4.myhuaweicloud.com/photos/cat.jpg",
+    "access_key": "AKIAIOSFODNN7EXAMPLE",
+    "secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    "region": "cn-north-4",
+    "service": "s3",
+    "datetime": "20240115T103000Z",
+    "date": "20240115",
+    "expires": 3600
+  },
+  "expected": {
+    "required_params": [
+      "X-Amz-Algorithm",
+      "X-Amz-Credential",
+      "X-Amz-Date",
+      "X-Amz-Expires",
+      "X-Amz-SignedHeaders",
+      "X-Amz-Signature"
+    ],
+    "algorithm": "AWS4-HMAC-SHA256",
+    "expires": "3600"
+  }
+}
