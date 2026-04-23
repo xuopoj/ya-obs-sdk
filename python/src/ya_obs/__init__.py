@@ -1,4 +1,4 @@
-__version__ = "0.1.3"
+__version__ = "0.2.0"
 
 from .client import Client, AsyncClient
 from ._errors import (
@@ -9,7 +9,7 @@ from ._errors import (
     NoSuchBucket,
     AccessDenied,
 )
-from ._models import Timeout, RetryPolicy
+from ._models import ProgressEvent, Timeout, RetryPolicy
 from ._responses import (
     PutObjectResponse,
     GetObjectResponse,
@@ -24,7 +24,7 @@ __all__ = [
     "Client",
     "AsyncClient",
     "ObsError", "ClientError", "ServerError", "NoSuchKey", "NoSuchBucket", "AccessDenied",
-    "Timeout", "RetryPolicy",
+    "Timeout", "RetryPolicy", "ProgressEvent",
     "PutObjectResponse", "GetObjectResponse", "HeadObjectResponse",
     "DeleteObjectResponse", "ListObjectsPage", "ObjectInfo", "CopyObjectResponse",
 ]

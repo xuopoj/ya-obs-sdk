@@ -38,6 +38,22 @@ async def test_async_get_object(httpx_mock: HTTPXMock, async_client):
     await async_client.close()
 
 @pytest.mark.asyncio
+async def test_async_put_object_fires_progress(httpx_mock: HTTPXMock, async_client):
+    httpx_mock.add_response(
+        method="PUT", status_code=200,
+        headers={"ETag": '"e"', "x-obs-request-id": "r"},
+    )
+    events = []
+    body = b"async body"
+    await async_client.put_object("b", "k", body, on_progress=events.append)
+    assert len(events) == 1
+    assert events[0].bytes_transferred == len(body)
+    assert events[0].total_bytes == len(body)
+    assert events[0].part_number is None
+    await async_client.close()
+
+
+@pytest.mark.asyncio
 async def test_async_context_manager(httpx_mock: HTTPXMock):
     httpx_mock.add_response(
         method="DELETE",

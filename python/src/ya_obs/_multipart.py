@@ -1,19 +1,44 @@
 from __future__ import annotations
 import math
 import os
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from .client import Client
 
-from ._models import Request
+from ._models import ProgressEvent, Request
 from ._responses import PutObjectResponse
 from ._xml import serialize_complete_multipart, parse_initiate_multipart
 
 _MIN_PART_SIZE = 8 * 1024 * 1024
 _MAX_PARTS = 9000
+
+
+class _ProgressTracker:
+    def __init__(
+        self,
+        total_bytes: int,
+        callback: Callable[[ProgressEvent], None] | None,
+    ) -> None:
+        self.total = total_bytes
+        self.callback = callback
+        self.lock = threading.Lock()
+        self.done = 0
+
+    def report(self, chunk_size: int, part_number: int | None) -> None:
+        if self.callback is None:
+            return
+        with self.lock:
+            self.done += chunk_size
+            transferred = self.done
+        self.callback(ProgressEvent(
+            bytes_transferred=transferred,
+            total_bytes=self.total,
+            part_number=part_number,
+        ))
 
 
 def compute_part_size(total_size: int) -> int:
@@ -104,14 +129,18 @@ def multipart_upload(
     extra_headers: dict[str, str] | None,
     part_size: int | None,
     concurrency: int,
+    on_progress: Callable[[ProgressEvent], None] | None = None,
 ) -> PutObjectResponse:
     upload_id = _initiate(client, bucket, key, content_type, metadata, extra_headers)
 
-    actual_part_size = part_size or compute_part_size(len(body))
+    total_size = len(body)
+    actual_part_size = part_size or compute_part_size(total_size)
     parts_data = split_into_parts(body, actual_part_size)
     completed_parts: list[tuple[int, str]] = []
 
-    def upload_part(part_number: int, chunk: bytes) -> tuple[int, str]:
+    progress = _ProgressTracker(total_size, on_progress)
+
+    def upload_part(part_number: int, chunk: bytes) -> tuple[int, str, int]:
         req = Request(
             method="PUT",
             url=client._url(bucket, key),
@@ -119,7 +148,7 @@ def multipart_upload(
             body=chunk,
         )
         r = client._http.send(req)
-        return (part_number, r.headers.get("etag", ""))
+        return (part_number, r.headers.get("etag", ""), len(chunk))
 
     try:
         with ThreadPoolExecutor(max_workers=concurrency) as pool:
@@ -128,8 +157,9 @@ def multipart_upload(
                 for pn, chunk in parts_data
             }
             for future in as_completed(futures):
-                pn, etag = future.result()
+                pn, etag, chunk_size = future.result()
                 completed_parts.append((pn, etag))
+                progress.report(chunk_size, pn)
     except Exception:
         _abort(client, bucket, key, upload_id)
         raise
@@ -148,6 +178,7 @@ def multipart_upload_from_path(
     extra_headers: dict[str, str] | None,
     part_size: int | None,
     concurrency: int,
+    on_progress: Callable[[ProgressEvent], None] | None = None,
 ) -> PutObjectResponse:
     if not hasattr(os, "pread"):
         raise NotImplementedError(
@@ -159,8 +190,9 @@ def multipart_upload_from_path(
     part_count = math.ceil(size / actual_part_size)
 
     upload_id = _initiate(client, bucket, key, content_type, metadata, extra_headers)
+    progress = _ProgressTracker(size, on_progress)
 
-    def upload_part(part_number: int) -> tuple[int, str]:
+    def upload_part(part_number: int) -> tuple[int, str, int]:
         offset = (part_number - 1) * actual_part_size
         length = min(actual_part_size, size - offset)
         with open(path, "rb") as f:
@@ -172,14 +204,16 @@ def multipart_upload_from_path(
             body=chunk,
         )
         r = client._http.send(req)
-        return (part_number, r.headers.get("etag", ""))
+        return (part_number, r.headers.get("etag", ""), length)
 
     completed_parts: list[tuple[int, str]] = []
     try:
         with ThreadPoolExecutor(max_workers=concurrency) as pool:
             futures = [pool.submit(upload_part, pn) for pn in range(1, part_count + 1)]
             for future in as_completed(futures):
-                completed_parts.append(future.result())
+                pn, etag, chunk_size = future.result()
+                completed_parts.append((pn, etag))
+                progress.report(chunk_size, pn)
     except Exception:
         _abort(client, bucket, key, upload_id)
         raise

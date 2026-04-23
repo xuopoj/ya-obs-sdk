@@ -175,3 +175,17 @@ def test_put_object_path_large_uses_streaming_multipart(httpx_mock: HTTPXMock, c
     assert total_uploaded == file_size
     sizes = sorted(len(r.content) for r in part_puts)
     assert sizes == [200, part_size, part_size, part_size]
+
+
+def test_put_object_small_fires_progress_once(httpx_mock: HTTPXMock, client):
+    httpx_mock.add_response(
+        method="PUT", status_code=200,
+        headers={"ETag": '"e"', "x-obs-request-id": "r"},
+    )
+    events = []
+    body = b"hello world"
+    client.put_object("b", "k", body, on_progress=events.append)
+    assert len(events) == 1
+    assert events[0].bytes_transferred == len(body)
+    assert events[0].total_bytes == len(body)
+    assert events[0].part_number is None

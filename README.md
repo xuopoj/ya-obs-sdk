@@ -4,7 +4,7 @@ A clean, minimal multi-language SDK for Huawei Cloud OBS.
 
 | Language | Package | Status |
 |----------|---------|--------|
-| Python | `ya-obs` (PyPI) | v0.1.3 |
+| Python | `ya-obs` (PyPI) | v0.2.0 |
 | TypeScript | `ya-obs` (npm) | planned |
 | Rust | `ya-obs` (crates.io) | planned |
 
@@ -52,6 +52,23 @@ export HUAWEICLOUD_SDK_SK=your-sk
 
 Default: V4 (AWS SigV4-compatible).
 For legacy deployments: `Client(..., signing_version="v2")`.
+
+## Upload progress
+
+Pass `on_progress=` to `put_object` to receive `ProgressEvent` callbacks:
+
+```python
+from ya_obs import Client, ProgressEvent
+
+def on_progress(ev: ProgressEvent):
+    pct = 100.0 * ev.bytes_transferred / ev.total_bytes
+    print(f"{ev.bytes_transferred}/{ev.total_bytes} ({pct:.1f}%)")
+
+with Client(region="cn-north-4") as c:
+    c.put_object("bucket", "big.bin", Path("big.bin"), on_progress=on_progress)
+```
+
+Fires once for single-part PUTs (at completion) and once per completed part for multipart uploads. `bytes_transferred` is monotonic even with concurrent parts. `part_number` is `None` for single-part and the 1-based part index for multipart.
 
 ## TLS / custom CA
 

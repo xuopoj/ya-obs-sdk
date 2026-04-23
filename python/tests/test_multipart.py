@@ -9,8 +9,10 @@ import pytest
 from ya_obs._multipart import (
     compute_part_size,
     split_into_parts,
+    multipart_upload,
     multipart_upload_from_path,
 )
+from ya_obs._models import ProgressEvent
 
 
 pytestmark_posix = pytest.mark.skipif(
@@ -263,5 +265,79 @@ def test_multipart_upload_from_path_bounded_concurrency():
             f"expected at most {concurrency} parts in flight, saw {max_in_flight}"
         )
         assert max_in_flight >= 1
+    finally:
+        tmp_path.unlink()
+
+
+def test_multipart_upload_progress_callback_fires_per_part():
+    part_size = 1024
+    data = b"A" * part_size + b"B" * part_size + b"C" * 500
+    initiate_xml = b'<?xml version="1.0"?><InitiateMultipartUploadResult><UploadId>up</UploadId></InitiateMultipartUploadResult>'
+    client = _make_mock_client(
+        initiate_xml=initiate_xml,
+        part_etags=['"e1"', '"e2"', '"e3"'],
+        complete_etag='"final"',
+    )
+
+    events: list[ProgressEvent] = []
+    multipart_upload(
+        client=client, bucket="b", key="k", body=data,
+        content_type=None, metadata=None, extra_headers=None,
+        part_size=part_size, concurrency=1,
+        on_progress=events.append,
+    )
+
+    assert len(events) == 3
+    assert events[-1].bytes_transferred == len(data)
+    assert events[-1].total_bytes == len(data)
+    assert [e.bytes_transferred for e in events] == sorted(e.bytes_transferred for e in events)
+    assert {e.part_number for e in events} == {1, 2, 3}
+
+
+def test_multipart_upload_no_callback_means_no_progress_calls():
+    # Sanity: when on_progress is None the upload still works
+    data = b"x" * 2048
+    initiate_xml = b'<?xml version="1.0"?><InitiateMultipartUploadResult><UploadId>up</UploadId></InitiateMultipartUploadResult>'
+    client = _make_mock_client(
+        initiate_xml=initiate_xml,
+        part_etags=['"e1"', '"e2"'],
+        complete_etag='"f"',
+    )
+    result = multipart_upload(
+        client=client, bucket="b", key="k", body=data,
+        content_type=None, metadata=None, extra_headers=None,
+        part_size=1024, concurrency=1,
+    )
+    assert result.etag == '"f"'
+
+
+@pytestmark_posix
+def test_multipart_upload_from_path_progress_callback():
+    part_size = 1024
+    file_size = part_size * 3 + 100
+
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        tmp.write(b"X" * file_size)
+        tmp_path = Path(tmp.name)
+
+    try:
+        initiate_xml = b'<?xml version="1.0"?><InitiateMultipartUploadResult><UploadId>up</UploadId></InitiateMultipartUploadResult>'
+        client = _make_mock_client(
+            initiate_xml=initiate_xml,
+            part_etags=['"e1"', '"e2"', '"e3"', '"e4"'],
+            complete_etag='"final"',
+        )
+
+        events: list[ProgressEvent] = []
+        multipart_upload_from_path(
+            client=client, bucket="b", key="k", path=tmp_path, size=file_size,
+            content_type=None, metadata=None, extra_headers=None,
+            part_size=part_size, concurrency=1,
+            on_progress=events.append,
+        )
+
+        assert len(events) == 4
+        assert events[-1].bytes_transferred == file_size
+        assert all(e.total_bytes == file_size for e in events)
     finally:
         tmp_path.unlink()

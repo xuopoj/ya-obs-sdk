@@ -8,7 +8,7 @@ from typing import BinaryIO, Callable, Iterator
 
 from ._errors import ObsError
 from ._http import HttpClient, AsyncHttpClient, VerifyTypes
-from ._models import Request, Timeout, RetryPolicy, RetryEvent
+from ._models import ProgressEvent, Request, Timeout, RetryPolicy, RetryEvent
 from ._responses import (
     PutObjectResponse, GetObjectResponse, HeadObjectResponse,
     DeleteObjectResponse, ListObjectsPage, ObjectInfo, CopyObjectResponse,
@@ -113,6 +113,7 @@ class Client:
         multipart_threshold: int | None = None,
         part_size: int | None = None,
         concurrency: int | None = None,
+        on_progress: Callable[[ProgressEvent], None] | None = None,
     ) -> PutObjectResponse:
         threshold = multipart_threshold or (100 * 1024 * 1024)
 
@@ -131,6 +132,7 @@ class Client:
                     extra_headers=extra_headers,
                     part_size=part_size,
                     concurrency=concurrency or 4,
+                    on_progress=on_progress,
                 )
             body_bytes = body.read_bytes()
         elif isinstance(body, str):
@@ -152,6 +154,7 @@ class Client:
                 extra_headers=extra_headers,
                 part_size=part_size,
                 concurrency=concurrency or 4,
+                on_progress=on_progress,
             )
 
         headers: dict[str, str] = {}
@@ -171,6 +174,12 @@ class Client:
 
         req = Request(method="PUT", url=self._url(bucket, key), headers=headers, body=body_bytes)
         raw = self._http.send(req)
+        if on_progress is not None:
+            on_progress(ProgressEvent(
+                bytes_transferred=len(body_bytes),
+                total_bytes=len(body_bytes),
+                part_number=None,
+            ))
         return PutObjectResponse(
             etag=raw.headers.get("etag", ""),
             version_id=raw.headers.get("x-obs-version-id"),
@@ -379,6 +388,7 @@ class AsyncClient:
         content_disposition: str | None = None,
         metadata: dict[str, str] | None = None,
         extra_headers: dict[str, str] | None = None,
+        on_progress: Callable[[ProgressEvent], None] | None = None,
     ) -> PutObjectResponse:
         if isinstance(body, str):
             body = body.encode("utf-8")
@@ -398,6 +408,12 @@ class AsyncClient:
             headers.update(extra_headers)
         req = Request(method="PUT", url=self._url(bucket, key), headers=headers, body=body)
         raw = await self._http.send(req)
+        if on_progress is not None:
+            on_progress(ProgressEvent(
+                bytes_transferred=len(body),
+                total_bytes=len(body),
+                part_number=None,
+            ))
         return PutObjectResponse(
             etag=raw.headers.get("etag", ""),
             version_id=raw.headers.get("x-obs-version-id"),

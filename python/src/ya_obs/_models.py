@@ -33,3 +33,10 @@ class RetryEvent:
     error: Exception
     delay: float
     request_id: str | None
+
+
+@dataclass
+class ProgressEvent:
+    bytes_transferred: int
+    total_bytes: int
+    part_number: int | None = None
