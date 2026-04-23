@@ -48,6 +48,39 @@ def test_404_raises_no_such_key(httpx_mock: HTTPXMock, client):
     assert exc_info.value.status == 404
     assert exc_info.value.code == "NoSuchKey"
 
+def test_successful_send_closes_response_connection(httpx_mock: HTTPXMock, client):
+    """Regression: non-streaming send must close the httpx.Response so the
+    connection returns to the pool. Previously it leaked, causing one new
+    TCP+TLS handshake per request (see the multipart stall bug)."""
+    httpx_mock.add_response(
+        method="PUT",
+        url="https://b.obs.cn-north-4.myhuaweicloud.com/k",
+        status_code=200,
+        content=b"",
+    )
+    resp = client.send(Request(method="PUT", url="https://b.obs.cn-north-4.myhuaweicloud.com/k", body=b"x"))
+    # pytest_httpx exposes the underlying httpx.Response via transport; we can
+    # check is_closed on our wrapped response
+    assert resp._response.is_closed, "response was not closed after non-streaming send"
+
+
+def test_streaming_send_leaves_response_open(httpx_mock: HTTPXMock, client):
+    """Streaming callers take ownership of closing — the send itself must NOT
+    close or the caller will get EOF mid-stream."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://b.obs.cn-north-4.myhuaweicloud.com/k",
+        status_code=200,
+        content=b"streamed body",
+    )
+    resp = client.send(Request(method="GET", url="https://b.obs.cn-north-4.myhuaweicloud.com/k"), stream=True)
+    assert not resp._response.is_closed
+    # Draining via read() should close it.
+    data = resp.read()
+    assert data == b"streamed body"
+    assert resp._response.is_closed
+
+
 def test_request_gets_client_id_header(httpx_mock: HTTPXMock, client):
     httpx_mock.add_response(
         method="GET",

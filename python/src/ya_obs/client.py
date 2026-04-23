@@ -206,7 +206,7 @@ class Client:
             headers["If-None-Match"] = if_none_match
 
         req = Request(method="GET", url=self._url(bucket, key), headers=headers)
-        raw = self._http.send(req)
+        raw = self._http.send(req, stream=True)
         h = raw.headers
         return GetObjectResponse(
             body=StreamingBody(iterator=raw.iter_bytes()),
@@ -433,7 +433,7 @@ class AsyncClient:
             start, end = range
             headers["Range"] = f"bytes={start}-{end}" if end is not None else f"bytes={start}-"
         req = Request(method="GET", url=self._url(bucket, key), headers=headers)
-        raw = await self._http.send(req)
+        raw = await self._http.send(req, stream=True)
         stream = raw.stream()
         h = raw.headers
         return GetObjectResponse(

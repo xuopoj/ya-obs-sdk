@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ya-obs"
-version = "0.2.0"
+version = "0.2.1"
 description = "A clean Python SDK for Huawei Cloud OBS"
 requires-python = ">=3.11"
 dependencies = [

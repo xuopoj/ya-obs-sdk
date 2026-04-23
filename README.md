@@ -4,7 +4,7 @@ A clean, minimal multi-language SDK for Huawei Cloud OBS.
 
 | Language | Package | Status |
 |----------|---------|--------|
-| Python | `ya-obs` (PyPI) | v0.2.0 |
+| Python | `ya-obs` (PyPI) | v0.2.1 |
 | TypeScript | `ya-obs` (npm) | planned |
 | Rust | `ya-obs` (crates.io) | planned |
 

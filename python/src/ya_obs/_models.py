@@ -16,6 +16,7 @@ class Request:
 class Timeout:
     connect: float = 10.0
     read: float = 60.0
+    write: float | None = 60.0
     total: float | None = None
 
 

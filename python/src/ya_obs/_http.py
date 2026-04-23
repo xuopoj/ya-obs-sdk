@@ -17,17 +17,31 @@ logger = logging.getLogger("ya_obs")
 
 
 class RawResponse:
-    def __init__(self, response: httpx.Response, client_request_id: str) -> None:
+    def __init__(
+        self,
+        response: httpx.Response,
+        client_request_id: str,
+        body: bytes | None = None,
+    ) -> None:
         self._response = response
+        self._body = body
         self.client_request_id = client_request_id
         self.status_code = response.status_code
         self.headers = dict(response.headers)
 
     def iter_bytes(self, chunk_size: int = 65536) -> Iterator[bytes]:
-        yield from self._response.iter_bytes(chunk_size=chunk_size)
+        try:
+            yield from self._response.iter_bytes(chunk_size=chunk_size)
+        finally:
+            self._response.close()
 
     def read(self) -> bytes:
-        return self._response.read()
+        if self._body is not None:
+            return self._body
+        try:
+            return self._response.read()
+        finally:
+            self._response.close()
 
 
 class HttpClient:
@@ -47,13 +61,13 @@ class HttpClient:
             timeout=httpx.Timeout(
                 connect=timeout.connect,
                 read=timeout.read,
-                write=None,
+                write=timeout.write,
                 pool=None,
             ),
             verify=verify,
         )
 
-    def send(self, request: Request, **overrides) -> RawResponse:
+    def send(self, request: Request, *, stream: bool = False, **overrides) -> RawResponse:
         client_request_id = str(uuid.uuid4())
         retry_loop = RetryLoop(
             policy=overrides.get("retry_policy", self._retry_policy),
@@ -81,7 +95,10 @@ class HttpClient:
             resp = self._client.send(httpx_req, stream=True)
             request_id = resp.headers.get("x-obs-request-id", "")
             if resp.status_code >= 400:
-                body = resp.read()
+                try:
+                    body = resp.read()
+                finally:
+                    resp.close()
                 try:
                     parsed = parse_error_response(body.decode("utf-8"))
                     err = make_error(
@@ -101,6 +118,12 @@ class HttpClient:
                         client_request_id=client_request_id,
                     )
                 raise err
+            if not stream:
+                try:
+                    body = resp.read()
+                finally:
+                    resp.close()
+                return RawResponse(resp, client_request_id=client_request_id, body=body)
             return RawResponse(resp, client_request_id=client_request_id)
 
         return retry_loop.run(_attempt)
@@ -128,17 +151,29 @@ class AsyncStreamingBody:
 
     async def read(self) -> bytes:
         self._check()
-        return await self._response.aread()
+        try:
+            return await self._response.aread()
+        finally:
+            await self._response.aclose()
 
     async def iter_bytes(self, chunk_size: int = 65536):
         self._check()
-        async for chunk in self._response.aiter_bytes(chunk_size):
-            yield chunk
+        try:
+            async for chunk in self._response.aiter_bytes(chunk_size):
+                yield chunk
+        finally:
+            await self._response.aclose()
 
 
 class AsyncRawResponse:
-    def __init__(self, response: httpx.Response, client_request_id: str) -> None:
+    def __init__(
+        self,
+        response: httpx.Response,
+        client_request_id: str,
+        body: bytes | None = None,
+    ) -> None:
         self._response = response
+        self._body = body
         self.client_request_id = client_request_id
         self.status_code = response.status_code
         self.headers = dict(response.headers)
@@ -147,7 +182,12 @@ class AsyncRawResponse:
         return AsyncStreamingBody(self._response, self.client_request_id)
 
     async def read(self) -> bytes:
-        return await self._response.aread()
+        if self._body is not None:
+            return self._body
+        try:
+            return await self._response.aread()
+        finally:
+            await self._response.aclose()
 
 
 class AsyncHttpClient:
@@ -167,13 +207,13 @@ class AsyncHttpClient:
             timeout=httpx.Timeout(
                 connect=timeout.connect,
                 read=timeout.read,
-                write=None,
+                write=timeout.write,
                 pool=None,
             ),
             verify=verify,
         )
 
-    async def send(self, request: Request, **overrides) -> AsyncRawResponse:
+    async def send(self, request: Request, *, stream: bool = False, **overrides) -> AsyncRawResponse:
         client_request_id = str(uuid.uuid4())
         req = Request(
             method=request.method,
@@ -194,7 +234,10 @@ class AsyncHttpClient:
         resp = await self._client.send(httpx_req, stream=True)
         request_id = resp.headers.get("x-obs-request-id", "")
         if resp.status_code >= 400:
-            body = await resp.aread()
+            try:
+                body = await resp.aread()
+            finally:
+                await resp.aclose()
             try:
                 parsed = parse_error_response(body.decode("utf-8"))
                 err = make_error(
@@ -214,6 +257,12 @@ class AsyncHttpClient:
                     client_request_id=client_request_id,
                 )
             raise err
+        if not stream:
+            try:
+                body = await resp.aread()
+            finally:
+                await resp.aclose()
+            return AsyncRawResponse(resp, client_request_id=client_request_id, body=body)
         return AsyncRawResponse(resp, client_request_id=client_request_id)
 
     async def close(self) -> None:
