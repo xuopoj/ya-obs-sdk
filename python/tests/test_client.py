@@ -1,3 +1,4 @@
+import os
 import pytest
 from pytest_httpx import HTTPXMock
 from ya_obs.client import Client
@@ -119,3 +120,58 @@ def test_list_objects_iterator(httpx_mock: HTTPXMock, client):
     objects = list(client.list_objects("my-bucket"))
     assert len(objects) == 1
     assert objects[0].key == "file.txt"
+
+
+@pytest.mark.skipif(not hasattr(os, "pread"), reason="pread not available")
+def test_put_object_path_large_uses_streaming_multipart(httpx_mock: HTTPXMock, client, tmp_path):
+    threshold = 2048
+    part_size = 1024
+    file_size = part_size * 3 + 200  # 4 parts, well above threshold
+
+    file_path = tmp_path / "big.bin"
+    with open(file_path, "wb") as f:
+        f.write(b"A" * part_size)
+        f.write(b"B" * part_size)
+        f.write(b"C" * part_size)
+        f.write(b"D" * 200)
+
+    initiate_xml = (
+        b'<?xml version="1.0" encoding="UTF-8"?>'
+        b'<InitiateMultipartUploadResult xmlns="http://obs.myhwclouds.com/doc/2015-06-30/">'
+        b'<UploadId>up-100</UploadId></InitiateMultipartUploadResult>'
+    )
+    httpx_mock.add_response(
+        method="POST",
+        status_code=200,
+        content=initiate_xml,
+        headers={"Content-Type": "application/xml", "x-obs-request-id": "init"},
+    )
+    for i in range(1, 5):
+        httpx_mock.add_response(
+            method="PUT",
+            status_code=200,
+            headers={"ETag": f'"part-{i}"', "x-obs-request-id": f"p{i}"},
+        )
+    httpx_mock.add_response(
+        method="POST",
+        status_code=200,
+        content=b'<?xml version="1.0"?><CompleteMultipartUploadResult><ETag>"final"</ETag></CompleteMultipartUploadResult>',
+        headers={"ETag": '"final-etag"', "x-obs-request-id": "done"},
+    )
+
+    from pathlib import Path as _P
+    resp = client.put_object(
+        "my-bucket", "big.bin", _P(file_path),
+        multipart_threshold=threshold,
+        part_size=part_size,
+        concurrency=2,
+    )
+
+    assert resp.etag == '"final-etag"'
+    sent = httpx_mock.get_requests()
+    part_puts = [r for r in sent if r.method == "PUT" and b"partNumber" in r.url.query]
+    assert len(part_puts) == 4
+    total_uploaded = sum(len(r.content) for r in part_puts)
+    assert total_uploaded == file_size
+    sizes = sorted(len(r.content) for r in part_puts)
+    assert sizes == [200, part_size, part_size, part_size]
