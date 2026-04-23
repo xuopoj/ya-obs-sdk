@@ -2,9 +2,25 @@ from __future__ import annotations
 import hashlib
 import hmac
 from datetime import datetime, timezone
-from urllib.parse import urlparse, urlencode
+from urllib.parse import urlparse, urlencode, quote, parse_qsl
 
 from ._models import Request
+
+
+def _encode_canonical_query(
+    url_query: str, params: dict[str, str] | None
+) -> str:
+    pairs: list[tuple[str, str]] = []
+    if url_query:
+        pairs.extend(parse_qsl(url_query, keep_blank_values=True))
+    if params:
+        pairs.extend((str(k), str(v)) for k, v in params.items())
+    encoded = [
+        (quote(k, safe="-_.~"), quote(v, safe="-_.~"))
+        for k, v in pairs
+    ]
+    encoded.sort()
+    return "&".join(f"{k}={v}" for k, v in encoded)
 
 
 def _sha256(data: bytes) -> str:
@@ -72,6 +88,7 @@ class SignerV4:
 
         parsed = urlparse(request.url)
         path = parsed.path or "/"
+        canonical_query = _encode_canonical_query(parsed.query, request.params)
 
         body_sha256 = _sha256(request.body or b"")
         headers = dict(request.headers)
@@ -84,7 +101,7 @@ class SignerV4:
         cr = canonical_request(
             method=request.method,
             path=path,
-            query_string=parsed.query or "",
+            query_string=canonical_query,
             headers=headers,
             signed_headers=signed_header_names,
             body_sha256=body_sha256,
@@ -108,11 +125,15 @@ class SignerV4:
         )
         headers["Authorization"] = auth
 
+        signed_url = f"{parsed.scheme}://{parsed.netloc}{path}"
+        if canonical_query:
+            signed_url += f"?{canonical_query}"
+
         return Request(
             method=request.method,
-            url=request.url,
+            url=signed_url,
             headers=headers,
-            params=request.params,
+            params=None,
             body=request.body,
         )
 

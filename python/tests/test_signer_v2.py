@@ -63,6 +63,44 @@ def test_presign_string_to_sign():
     )
     assert sts == v["expected"]["string_to_sign"]
 
+def test_v2_sub_resources_included_in_canonicalized_resource():
+    resource = build_canonicalized_resource(
+        bucket="b", key="", sub_resources={"uploads": ""},
+    )
+    assert resource == "/b/?uploads"
+
+
+def test_v2_sub_resources_filter_out_non_sub_resources():
+    # "max-keys" is not a sub-resource in the V2 list — it must NOT appear
+    resource = build_canonicalized_resource(
+        bucket="b", key="",
+        sub_resources={"uploads": "", "max-keys": "5"},
+    )
+    assert resource == "/b/?uploads"
+    assert "max-keys" not in resource
+
+
+def test_v2_sign_bakes_params_into_url():
+    signer = SignerV2(access_key="AK", secret_key="SK")
+    req = Request(
+        method="POST",
+        url="https://my-bucket.obs.cn-north-4.myhuaweicloud.com/key",
+        params={"uploads": ""},
+    )
+    signed = signer.sign(req)
+    assert signed.params is None
+    assert signed.url.endswith("?uploads")
+
+
+def test_v2_sign_differs_with_and_without_params():
+    signer = SignerV2(access_key="AK", secret_key="SK")
+    url = "https://my-bucket.obs.cn-north-4.myhuaweicloud.com/key"
+    date = "Tue, 15 Jan 2024 10:30:00 GMT"
+    a = signer.sign(Request(method="POST", url=url, headers={"Date": date})).headers["Authorization"]
+    b = signer.sign(Request(method="POST", url=url, headers={"Date": date}, params={"uploads": ""})).headers["Authorization"]
+    assert a != b
+
+
 def test_presign_url_contains_required_params():
     v = load("v2_presign_basic")
     i = v["input"]

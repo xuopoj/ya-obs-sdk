@@ -1,6 +1,7 @@
 import json
 import pathlib
-from ya_obs._signer_v4 import SignerV4, canonical_request, string_to_sign
+from urllib.parse import urlparse, parse_qs
+from ya_obs._signer_v4 import SignerV4, canonical_request, string_to_sign, _encode_canonical_query
 from ya_obs._models import Request
 
 VECTORS = pathlib.Path(__file__).parent.parent.parent / "test-vectors" / "auth"
@@ -48,6 +49,49 @@ def test_sign_request_adds_authorization():
     signed = signer.sign(req)
     assert "Authorization" in signed.headers
     assert signed.headers["Authorization"].startswith("AWS4-HMAC-SHA256 ")
+
+def test_canonical_query_sorts_and_encodes():
+    # keys sorted, spaces as %20 (not +), empty value preserved as "k="
+    q = _encode_canonical_query("", {"prefix": "a/b c", "max-keys": "5", "uploads": ""})
+    assert q == "max-keys=5&prefix=a%2Fb%20c&uploads="
+
+
+def test_canonical_query_merges_url_query_and_params():
+    q = _encode_canonical_query("uploadId=abc==", {"partNumber": "3"})
+    # '=' in the value must be percent-encoded
+    assert q == "partNumber=3&uploadId=abc%3D%3D"
+
+
+def test_canonical_query_empty_when_nothing():
+    assert _encode_canonical_query("", None) == ""
+    assert _encode_canonical_query("", {}) == ""
+
+
+def test_sign_bakes_params_into_url_and_clears_params():
+    signer = SignerV4(access_key="AK", secret_key="SK", region="cn-global-1")
+    req = Request(
+        method="GET",
+        url="https://bucket.example/",
+        params={"max-keys": "5", "prefix": "a/b"},
+    )
+    signed = signer.sign(req)
+    assert signed.params is None
+    parsed = urlparse(signed.url)
+    qs = parse_qs(parsed.query)
+    assert qs == {"max-keys": ["5"], "prefix": ["a/b"]}
+
+
+def test_sign_list_vs_put_produce_different_signatures():
+    # If params weren't signed, list_objects and put_object to the same URL
+    # would share a signature. After the fix they must differ.
+    signer = SignerV4(access_key="AK", secret_key="SK", region="cn-global-1")
+    url = "https://bucket.example/"
+    put_sig = signer.sign(Request(method="GET", url=url)).headers["Authorization"]
+    list_sig = signer.sign(
+        Request(method="GET", url=url, params={"max-keys": "1"})
+    ).headers["Authorization"]
+    assert put_sig != list_sig
+
 
 def test_presign_url_contains_required_params():
     v = load("v4_presign_basic")

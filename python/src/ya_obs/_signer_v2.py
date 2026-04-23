@@ -3,7 +3,7 @@ import base64
 import hashlib
 import hmac
 from datetime import datetime, timezone
-from urllib.parse import urlparse, urlencode
+from urllib.parse import urlparse, urlencode, parse_qsl, quote
 
 from ._models import Request
 
@@ -89,8 +89,18 @@ class SignerV2:
                 "%a, %d %b %Y %H:%M:%S GMT"
             )
 
+        all_params: dict[str, str] = {}
+        if parsed.query:
+            for k, v in parse_qsl(parsed.query, keep_blank_values=True):
+                all_params[k] = v
+        if request.params:
+            for k, v in request.params.items():
+                all_params[k] = str(v)
+
         obs_headers = {k: v for k, v in headers.items() if k.lower().startswith("x-obs-")}
-        resource = build_canonicalized_resource(bucket=bucket, key=key)
+        resource = build_canonicalized_resource(
+            bucket=bucket, key=key, sub_resources=all_params or None
+        )
         sts = build_string_to_sign(
             method=request.method,
             content_md5=headers.get("Content-MD5", ""),
@@ -101,11 +111,20 @@ class SignerV2:
         )
         signature = _sign(self.secret_key, sts)
         headers["Authorization"] = f"OBS {self.access_key}:{signature}"
+
+        wire_query = "&".join(
+            f"{quote(k, safe='-_.~')}={quote(v, safe='-_.~')}" if v != "" else quote(k, safe="-_.~")
+            for k, v in all_params.items()
+        ) if all_params else ""
+        signed_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path or '/'}"
+        if wire_query:
+            signed_url += f"?{wire_query}"
+
         return Request(
             method=request.method,
-            url=request.url,
+            url=signed_url,
             headers=headers,
-            params=request.params,
+            params=None,
             body=request.body,
         )
 
