@@ -1,6 +1,8 @@
 from __future__ import annotations
 import math
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -128,6 +130,56 @@ def multipart_upload(
             for future in as_completed(futures):
                 pn, etag = future.result()
                 completed_parts.append((pn, etag))
+    except Exception:
+        _abort(client, bucket, key, upload_id)
+        raise
+
+    return _complete(client, bucket, key, upload_id, completed_parts)
+
+
+def multipart_upload_from_path(
+    client: "Client",
+    bucket: str,
+    key: str,
+    path: Path,
+    size: int,
+    content_type: str | None,
+    metadata: dict[str, str] | None,
+    extra_headers: dict[str, str] | None,
+    part_size: int | None,
+    concurrency: int,
+) -> PutObjectResponse:
+    if not hasattr(os, "pread"):
+        raise NotImplementedError(
+            "path-based multipart upload requires os.pread (POSIX only); "
+            "pass `bytes` or upload from a POSIX host"
+        )
+
+    actual_part_size = part_size or compute_part_size(size)
+    part_count = math.ceil(size / actual_part_size)
+
+    upload_id = _initiate(client, bucket, key, content_type, metadata, extra_headers)
+
+    def upload_part(part_number: int) -> tuple[int, str]:
+        offset = (part_number - 1) * actual_part_size
+        length = min(actual_part_size, size - offset)
+        with open(path, "rb") as f:
+            chunk = os.pread(f.fileno(), length, offset)
+        req = Request(
+            method="PUT",
+            url=client._url(bucket, key),
+            params={"partNumber": str(part_number), "uploadId": upload_id},
+            body=chunk,
+        )
+        r = client._http.send(req)
+        return (part_number, r.headers.get("etag", ""))
+
+    completed_parts: list[tuple[int, str]] = []
+    try:
+        with ThreadPoolExecutor(max_workers=concurrency) as pool:
+            futures = [pool.submit(upload_part, pn) for pn in range(1, part_count + 1)]
+            for future in as_completed(futures):
+                completed_parts.append(future.result())
     except Exception:
         _abort(client, bucket, key, upload_id)
         raise
