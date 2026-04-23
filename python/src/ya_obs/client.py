@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import BinaryIO, Callable, Iterator
 
 from ._errors import ObsError
-from ._http import HttpClient, AsyncHttpClient
+from ._http import HttpClient, AsyncHttpClient, VerifyTypes
 from ._models import Request, Timeout, RetryPolicy, RetryEvent
 from ._responses import (
     PutObjectResponse, GetObjectResponse, HeadObjectResponse,
@@ -75,6 +75,7 @@ class Client:
         timeout: Timeout | None = None,
         retry_policy: RetryPolicy | None = None,
         on_retry: Callable[[RetryEvent], None] | None = None,
+        verify: VerifyTypes = True,
     ) -> None:
         ak, sk = _resolve_credentials(access_key, secret_key)
         self._endpoint = _resolve_endpoint(region, endpoint)
@@ -86,6 +87,7 @@ class Client:
             timeout=timeout or Timeout(),
             retry_policy=retry_policy or RetryPolicy(),
             on_retry=on_retry,
+            verify=verify,
         )
 
     def _url(self, bucket: str, key: str | None = None) -> str:
@@ -342,6 +344,7 @@ class AsyncClient:
         timeout: Timeout | None = None,
         retry_policy: RetryPolicy | None = None,
         on_retry=None,
+        verify: VerifyTypes = True,
     ) -> None:
         ak, sk = _resolve_credentials(access_key, secret_key)
         self._endpoint = _resolve_endpoint(region, endpoint)
@@ -353,6 +356,7 @@ class AsyncClient:
             timeout=timeout or Timeout(),
             retry_policy=retry_policy or RetryPolicy(),
             on_retry=on_retry,
+            verify=verify,
         )
 
     def _url(self, bucket: str, key: str | None = None) -> str:

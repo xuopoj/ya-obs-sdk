@@ -1,9 +1,12 @@
 from __future__ import annotations
 import logging
+import ssl
 import uuid
-from typing import Callable, Iterator
+from typing import Callable, Iterator, Union
 
 import httpx
+
+VerifyTypes = Union[bool, str, ssl.SSLContext]
 
 from ._errors import make_error
 from ._models import Request, Timeout, RetryPolicy, RetryEvent
@@ -34,6 +37,7 @@ class HttpClient:
         timeout: Timeout,
         retry_policy: RetryPolicy,
         on_retry: Callable[[RetryEvent], None] | None = None,
+        verify: VerifyTypes = True,
     ) -> None:
         self._signer = signer
         self._timeout = timeout
@@ -45,7 +49,8 @@ class HttpClient:
                 read=timeout.read,
                 write=None,
                 pool=None,
-            )
+            ),
+            verify=verify,
         )
 
     def send(self, request: Request, **overrides) -> RawResponse:
@@ -152,6 +157,7 @@ class AsyncHttpClient:
         timeout: Timeout,
         retry_policy: RetryPolicy,
         on_retry=None,
+        verify: VerifyTypes = True,
     ) -> None:
         self._signer = signer
         self._timeout = timeout
@@ -163,7 +169,8 @@ class AsyncHttpClient:
                 read=timeout.read,
                 write=None,
                 pool=None,
-            )
+            ),
+            verify=verify,
         )
 
     async def send(self, request: Request, **overrides) -> AsyncRawResponse:

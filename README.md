@@ -4,7 +4,7 @@ A clean, minimal multi-language SDK for Huawei Cloud OBS.
 
 | Language | Package | Status |
 |----------|---------|--------|
-| Python | `ya-obs` (PyPI) | v0.1.0 |
+| Python | `ya-obs` (PyPI) | v0.1.2 |
 | TypeScript | `ya-obs` (npm) | planned |
 | Rust | `ya-obs` (crates.io) | planned |
 
@@ -52,6 +52,23 @@ export HUAWEICLOUD_SDK_SK=your-sk
 
 Default: V4 (AWS SigV4-compatible).
 For legacy deployments: `Client(..., signing_version="v2")`.
+
+## TLS / custom CA
+
+Private OBS clusters often use an internal CA. Pass `verify` to `Client` / `AsyncClient`:
+
+```python
+import ssl
+
+# Trust an internal CA bundle
+ctx = ssl.create_default_context(cafile="/etc/ssl/corp-ca.pem")
+client = Client(endpoint="https://obs.internal.example", verify=ctx)
+
+# Disable verification (not recommended outside trusted networks)
+client = Client(endpoint="https://obs.internal.example", verify=False)
+```
+
+`verify` accepts `True` (system trust, the default), `False`, a path to a PEM file, or an `ssl.SSLContext`. Mirrors `httpx`'s own `verify` parameter.
 
 ## Async
 
