@@ -26,17 +26,14 @@ def split_into_parts(data: bytes, part_size: int) -> list[tuple[int, bytes]]:
     return parts
 
 
-def multipart_upload(
+def _initiate(
     client: "Client",
     bucket: str,
     key: str,
-    body: bytes,
     content_type: str | None,
     metadata: dict[str, str] | None,
     extra_headers: dict[str, str] | None,
-    part_size: int | None,
-    concurrency: int,
-) -> PutObjectResponse:
+) -> str:
     init_headers: dict[str, str] = {}
     if content_type:
         init_headers["Content-Type"] = content_type
@@ -54,7 +51,59 @@ def multipart_upload(
     )
     raw = client._http.send(init_req)
     parsed_init = parse_initiate_multipart(raw.read().decode("utf-8"))
-    upload_id = parsed_init["upload_id"]
+    return parsed_init["upload_id"]
+
+
+def _abort(client: "Client", bucket: str, key: str, upload_id: str) -> None:
+    abort_req = Request(
+        method="DELETE",
+        url=client._url(bucket, key),
+        params={"uploadId": upload_id},
+    )
+    try:
+        client._http.send(abort_req)
+    except Exception:
+        pass
+
+
+def _complete(
+    client: "Client",
+    bucket: str,
+    key: str,
+    upload_id: str,
+    completed_parts: list[tuple[int, str]],
+) -> PutObjectResponse:
+    completed_parts.sort(key=lambda x: x[0])
+    xml_body = serialize_complete_multipart(completed_parts)
+    complete_req = Request(
+        method="POST",
+        url=client._url(bucket, key),
+        params={"uploadId": upload_id},
+        headers={"Content-Type": "application/xml"},
+        body=xml_body.encode("utf-8"),
+    )
+    raw_complete = client._http.send(complete_req)
+    h = raw_complete.headers
+    return PutObjectResponse(
+        etag=h.get("etag", ""),
+        version_id=h.get("x-obs-version-id"),
+        request_id=h.get("x-obs-request-id", ""),
+        client_request_id=raw_complete.client_request_id,
+    )
+
+
+def multipart_upload(
+    client: "Client",
+    bucket: str,
+    key: str,
+    body: bytes,
+    content_type: str | None,
+    metadata: dict[str, str] | None,
+    extra_headers: dict[str, str] | None,
+    part_size: int | None,
+    concurrency: int,
+) -> PutObjectResponse:
+    upload_id = _initiate(client, bucket, key, content_type, metadata, extra_headers)
 
     actual_part_size = part_size or compute_part_size(len(body))
     parts_data = split_into_parts(body, actual_part_size)
@@ -80,31 +129,7 @@ def multipart_upload(
                 pn, etag = future.result()
                 completed_parts.append((pn, etag))
     except Exception:
-        abort_req = Request(
-            method="DELETE",
-            url=client._url(bucket, key),
-            params={"uploadId": upload_id},
-        )
-        try:
-            client._http.send(abort_req)
-        except Exception:
-            pass
+        _abort(client, bucket, key, upload_id)
         raise
 
-    completed_parts.sort(key=lambda x: x[0])
-    xml_body = serialize_complete_multipart(completed_parts)
-    complete_req = Request(
-        method="POST",
-        url=client._url(bucket, key),
-        params={"uploadId": upload_id},
-        headers={"Content-Type": "application/xml"},
-        body=xml_body.encode("utf-8"),
-    )
-    raw_complete = client._http.send(complete_req)
-    h = raw_complete.headers
-    return PutObjectResponse(
-        etag=h.get("etag", ""),
-        version_id=h.get("x-obs-version-id"),
-        request_id=h.get("x-obs-request-id", ""),
-        client_request_id=raw_complete.client_request_id,
-    )
+    return _complete(client, bucket, key, upload_id, completed_parts)
