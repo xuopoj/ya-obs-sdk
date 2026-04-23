@@ -188,3 +188,80 @@ def test_multipart_upload_from_path_aborts_on_failure():
         assert abort_requests[0].params["uploadId"] == "up-2"
     finally:
         tmp_path.unlink()
+
+
+import threading
+
+
+@pytestmark_posix
+def test_multipart_upload_from_path_bounded_concurrency():
+    part_size = 1024
+    part_count = 8
+    file_size = part_size * part_count
+    concurrency = 2
+
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        tmp.write(b"Z" * file_size)
+        tmp_path = Path(tmp.name)
+
+    try:
+        initiate_xml = b'<?xml version="1.0"?><InitiateMultipartUploadResult xmlns="http://obs.myhwclouds.com/doc/2015-06-30/"><UploadId>up-3</UploadId></InitiateMultipartUploadResult>'
+
+        in_flight = 0
+        max_in_flight = 0
+        lock = threading.Lock()
+        gate = threading.Event()
+
+        def send(req):
+            nonlocal in_flight, max_in_flight
+            params = req.params or {}
+            if req.method == "POST" and "uploads" in params:
+                resp = MagicMock()
+                resp.read = lambda: initiate_xml
+                resp.headers = {}
+                resp.client_request_id = "cid"
+                return resp
+            if req.method == "PUT" and "partNumber" in params:
+                with lock:
+                    in_flight += 1
+                    if in_flight > max_in_flight:
+                        max_in_flight = in_flight
+                gate.wait(timeout=2)
+                with lock:
+                    in_flight -= 1
+                resp = MagicMock()
+                resp.headers = {"etag": f'"e{params["partNumber"]}"'}
+                resp.client_request_id = "cid"
+                return resp
+            if req.method == "POST" and "uploadId" in params:
+                resp = MagicMock()
+                resp.headers = {"etag": '"final"', "x-obs-request-id": "r"}
+                resp.client_request_id = "cid"
+                return resp
+            raise AssertionError(f"unexpected request: {req.method} {params}")
+
+        client = MagicMock()
+        client._url = lambda bucket, key=None: f"https://test/{bucket}/{key or ''}"
+        client._http.send = send
+
+        threading.Timer(0.2, gate.set).start()
+
+        multipart_upload_from_path(
+            client=client,
+            bucket="b",
+            key="k",
+            path=tmp_path,
+            size=file_size,
+            content_type=None,
+            metadata=None,
+            extra_headers=None,
+            part_size=part_size,
+            concurrency=concurrency,
+        )
+
+        assert max_in_flight <= concurrency, (
+            f"expected at most {concurrency} parts in flight, saw {max_in_flight}"
+        )
+        assert max_in_flight >= 1
+    finally:
+        tmp_path.unlink()
