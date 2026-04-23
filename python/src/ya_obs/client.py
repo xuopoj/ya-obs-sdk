@@ -112,16 +112,32 @@ class Client:
         part_size: int | None = None,
         concurrency: int | None = None,
     ) -> PutObjectResponse:
-        if isinstance(body, str):
-            body_bytes = body.encode("utf-8")
-        elif isinstance(body, Path):
+        threshold = multipart_threshold or (100 * 1024 * 1024)
+
+        if isinstance(body, Path):
+            size = body.stat().st_size
+            if size >= threshold:
+                from ._multipart import multipart_upload_from_path
+                return multipart_upload_from_path(
+                    client=self,
+                    bucket=bucket,
+                    key=key,
+                    path=body,
+                    size=size,
+                    content_type=content_type,
+                    metadata=metadata,
+                    extra_headers=extra_headers,
+                    part_size=part_size,
+                    concurrency=concurrency or 4,
+                )
             body_bytes = body.read_bytes()
+        elif isinstance(body, str):
+            body_bytes = body.encode("utf-8")
         elif isinstance(body, bytes):
             body_bytes = body
         else:
             body_bytes = body.read()
 
-        threshold = multipart_threshold or (100 * 1024 * 1024)
         if len(body_bytes) >= threshold:
             from ._multipart import multipart_upload
             return multipart_upload(
