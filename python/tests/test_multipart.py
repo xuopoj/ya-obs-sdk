@@ -94,7 +94,7 @@ def test_multipart_upload_from_path_splits_correctly():
         tmp_path = Path(tmp.name)
 
     try:
-        initiate_xml = b'<?xml version="1.0"?><InitiateMultipartUploadResult><UploadId>up-1</UploadId></InitiateMultipartUploadResult>'
+        initiate_xml = b'<?xml version="1.0"?><InitiateMultipartUploadResult xmlns="http://obs.myhwclouds.com/doc/2015-06-30/"><UploadId>up-1</UploadId></InitiateMultipartUploadResult>'
         client = _make_mock_client(
             initiate_xml=initiate_xml,
             part_etags=['"e1"', '"e2"', '"e3"', '"e4"'],
@@ -122,5 +122,69 @@ def test_multipart_upload_from_path_splits_correctly():
         assert bodies_by_part[2] == b"B" * part_size
         assert bodies_by_part[3] == b"C" * part_size
         assert bodies_by_part[4] == b"D" * 100
+    finally:
+        tmp_path.unlink()
+
+
+@pytestmark_posix
+def test_multipart_upload_from_path_aborts_on_failure():
+    part_size = 1024
+    file_size = part_size * 3
+
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        tmp.write(b"X" * file_size)
+        tmp_path = Path(tmp.name)
+
+    try:
+        initiate_xml = b'<?xml version="1.0"?><InitiateMultipartUploadResult xmlns="http://obs.myhwclouds.com/doc/2015-06-30/"><UploadId>up-2</UploadId></InitiateMultipartUploadResult>'
+
+        sent_requests = []
+        call_count = {"part": 0}
+
+        def send(req):
+            sent_requests.append(req)
+            params = req.params or {}
+            if req.method == "POST" and "uploads" in params:
+                resp = MagicMock()
+                resp.read = lambda: initiate_xml
+                resp.headers = {}
+                resp.client_request_id = "cid"
+                return resp
+            if req.method == "PUT" and "partNumber" in params:
+                call_count["part"] += 1
+                if call_count["part"] == 2:
+                    raise RuntimeError("simulated network error on part 2")
+                resp = MagicMock()
+                resp.headers = {"etag": '"ok"'}
+                resp.client_request_id = "cid"
+                return resp
+            if req.method == "DELETE" and "uploadId" in params:
+                resp = MagicMock()
+                resp.headers = {}
+                resp.client_request_id = "cid"
+                return resp
+            raise AssertionError(f"unexpected request: {req.method} {params}")
+
+        client = MagicMock()
+        client._url = lambda bucket, key=None: f"https://test/{bucket}/{key or ''}"
+        client._http.send = send
+
+        with pytest.raises(RuntimeError, match="simulated network error"):
+            multipart_upload_from_path(
+                client=client,
+                bucket="b",
+                key="k",
+                path=tmp_path,
+                size=file_size,
+                content_type=None,
+                metadata=None,
+                extra_headers=None,
+                part_size=part_size,
+                concurrency=1,
+            )
+
+        abort_requests = [r for r in sent_requests if r.method == "DELETE" and "uploadId" in (r.params or {})]
+        assert len(abort_requests) == 1
+        assert abort_requests[0].params["uploadId"] == "up-2"
     finally:
         tmp_path.unlink()
