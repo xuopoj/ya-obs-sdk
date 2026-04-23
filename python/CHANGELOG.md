@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1 (2026-04-23)
+
+### Added
+- Streaming multipart uploads from disk: `Client.put_object(body=Path(...))` now reads parts via `os.pread` from a per-worker file descriptor instead of loading the whole file into memory. Peak memory is bounded to ~`concurrency × part_size` (default ~32 MB), enabling uploads of arbitrarily large files. POSIX only; raises `NotImplementedError` on Windows for files at or above the multipart threshold.
+
 ## 0.1.0 (2026-04-18)
 
 ### Added
