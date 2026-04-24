@@ -10,7 +10,7 @@ VerifyTypes = Union[bool, str, ssl.SSLContext]
 
 from ._errors import make_error
 from ._models import Request, Timeout, RetryPolicy, RetryEvent
-from ._retry import RetryLoop
+from ._retry import RetryLoop, AsyncRetryLoop, parse_retry_after
 from ._xml import parse_error_response
 
 logger = logging.getLogger("ya_obs")
@@ -117,6 +117,7 @@ class HttpClient:
                         request_id=request_id,
                         client_request_id=client_request_id,
                     )
+                err._retry_after = parse_retry_after(resp.headers.get("retry-after"))
                 raise err
             if not stream:
                 try:
@@ -215,55 +216,64 @@ class AsyncHttpClient:
 
     async def send(self, request: Request, *, stream: bool = False, **overrides) -> AsyncRawResponse:
         client_request_id = str(uuid.uuid4())
-        req = Request(
-            method=request.method,
-            url=request.url,
-            headers=dict(request.headers),
-            params=request.params,
-            body=request.body,
+        retry_loop = AsyncRetryLoop(
+            policy=overrides.get("retry_policy", self._retry_policy),
+            on_retry=self._on_retry,
         )
-        req.headers["x-ya-obs-client-id"] = client_request_id
-        signed = self._signer.sign(req)
-        httpx_req = self._client.build_request(
-            method=signed.method,
-            url=signed.url,
-            headers=signed.headers,
-            params=signed.params,
-            content=signed.body,
-        )
-        resp = await self._client.send(httpx_req, stream=True)
-        request_id = resp.headers.get("x-obs-request-id", "")
-        if resp.status_code >= 400:
-            try:
-                body = await resp.aread()
-            finally:
-                await resp.aclose()
-            try:
-                parsed = parse_error_response(body.decode("utf-8"))
-                err = make_error(
-                    code=parsed["code"],
-                    message=parsed["message"],
-                    status=resp.status_code,
-                    request_id=parsed.get("request_id", request_id),
-                    host_id=parsed.get("host_id", ""),
-                    client_request_id=client_request_id,
-                )
-            except Exception:
-                err = make_error(
-                    code="Unknown",
-                    message=body.decode("utf-8", errors="replace"),
-                    status=resp.status_code,
-                    request_id=request_id,
-                    client_request_id=client_request_id,
-                )
-            raise err
-        if not stream:
-            try:
-                body = await resp.aread()
-            finally:
-                await resp.aclose()
-            return AsyncRawResponse(resp, client_request_id=client_request_id, body=body)
-        return AsyncRawResponse(resp, client_request_id=client_request_id)
+
+        async def _attempt() -> AsyncRawResponse:
+            req = Request(
+                method=request.method,
+                url=request.url,
+                headers=dict(request.headers),
+                params=request.params,
+                body=request.body,
+            )
+            req.headers["x-ya-obs-client-id"] = client_request_id
+            signed = self._signer.sign(req)
+            httpx_req = self._client.build_request(
+                method=signed.method,
+                url=signed.url,
+                headers=signed.headers,
+                params=signed.params,
+                content=signed.body,
+            )
+            resp = await self._client.send(httpx_req, stream=True)
+            request_id = resp.headers.get("x-obs-request-id", "")
+            if resp.status_code >= 400:
+                try:
+                    body = await resp.aread()
+                finally:
+                    await resp.aclose()
+                try:
+                    parsed = parse_error_response(body.decode("utf-8"))
+                    err = make_error(
+                        code=parsed["code"],
+                        message=parsed["message"],
+                        status=resp.status_code,
+                        request_id=parsed.get("request_id", request_id),
+                        host_id=parsed.get("host_id", ""),
+                        client_request_id=client_request_id,
+                    )
+                except Exception:
+                    err = make_error(
+                        code="Unknown",
+                        message=body.decode("utf-8", errors="replace"),
+                        status=resp.status_code,
+                        request_id=request_id,
+                        client_request_id=client_request_id,
+                    )
+                err._retry_after = parse_retry_after(resp.headers.get("retry-after"))
+                raise err
+            if not stream:
+                try:
+                    body = await resp.aread()
+                finally:
+                    await resp.aclose()
+                return AsyncRawResponse(resp, client_request_id=client_request_id, body=body)
+            return AsyncRawResponse(resp, client_request_id=client_request_id)
+
+        return await retry_loop.run(_attempt)
 
     async def close(self) -> None:
         await self._client.aclose()
