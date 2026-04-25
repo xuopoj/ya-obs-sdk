@@ -54,6 +54,41 @@ async def test_async_put_object_fires_progress(httpx_mock: HTTPXMock, async_clie
 
 
 @pytest.mark.asyncio
+async def test_async_get_object_fires_download_progress(httpx_mock: HTTPXMock, async_client):
+    payload = b"x" * 19
+    httpx_mock.add_response(
+        method="GET", status_code=200, content=payload,
+        headers={"Content-Length": "19", "ETag": '"e"',
+                 "Last-Modified": "Mon, 15 Jan 2024 10:30:00 GMT",
+                 "x-obs-request-id": "r"},
+    )
+    events = []
+    resp = await async_client.get_object("b", "k")
+    await resp.body.read(on_progress=events.append)
+    assert events[-1].bytes_transferred == 19
+    assert events[-1].total_bytes == 19
+    await async_client.close()
+
+
+@pytest.mark.asyncio
+async def test_async_save_to(httpx_mock: HTTPXMock, async_client, tmp_path):
+    payload = b"hello async file"
+    httpx_mock.add_response(
+        method="GET", status_code=200, content=payload,
+        headers={"Content-Length": str(len(payload)), "ETag": '"e"',
+                 "Last-Modified": "Mon, 15 Jan 2024 10:30:00 GMT",
+                 "x-obs-request-id": "r"},
+    )
+    events = []
+    resp = await async_client.get_object("b", "k")
+    dest = tmp_path / "out.bin"
+    await resp.body.save_to(dest, on_progress=events.append)
+    assert dest.read_bytes() == payload
+    assert events[-1].bytes_transferred == len(payload)
+    await async_client.close()
+
+
+@pytest.mark.asyncio
 async def test_async_context_manager(httpx_mock: HTTPXMock):
     httpx_mock.add_response(
         method="DELETE",

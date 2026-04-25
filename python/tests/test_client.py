@@ -63,6 +63,24 @@ def test_get_object(httpx_mock: HTTPXMock, client):
     assert resp.content_type == "text/plain"
     assert resp.body.read() == b"file contents"
 
+
+def test_get_object_save_to_with_progress(httpx_mock: HTTPXMock, client, tmp_path):
+    payload = b"download progress payload"
+    httpx_mock.add_response(
+        method="GET", status_code=200, content=payload,
+        headers={"ETag": '"e"', "Content-Length": str(len(payload)),
+                 "Last-Modified": "Mon, 15 Jan 2024 10:30:00 GMT",
+                 "x-obs-request-id": "r"},
+    )
+    events = []
+    resp = client.get_object("my-bucket", "file.txt")
+    dest = tmp_path / "out.bin"
+    resp.body.save_to(dest, on_progress=events.append)
+    assert dest.read_bytes() == payload
+    assert events[-1].bytes_transferred == len(payload)
+    assert events[-1].total_bytes == len(payload)
+
+
 def test_get_object_range(httpx_mock: HTTPXMock, client):
     httpx_mock.add_response(
         method="GET",

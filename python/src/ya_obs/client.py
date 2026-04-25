@@ -208,10 +208,11 @@ class Client:
         req = Request(method="GET", url=self._url(bucket, key), headers=headers)
         raw = self._http.send(req, stream=True)
         h = raw.headers
+        cl = int(h["content-length"]) if "content-length" in h else None
         return GetObjectResponse(
-            body=StreamingBody(iterator=raw.iter_bytes()),
+            body=StreamingBody(iterator=raw.iter_bytes(), total_bytes=cl),
             content_type=h.get("content-type"),
-            content_length=int(h["content-length"]) if "content-length" in h else None,
+            content_length=cl,
             etag=h.get("etag", ""),
             last_modified=_parse_last_modified(h.get("last-modified", "")),
             metadata=_extract_metadata(h),

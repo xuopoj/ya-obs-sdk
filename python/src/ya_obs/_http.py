@@ -140,9 +140,15 @@ class HttpClient:
 
 
 class AsyncStreamingBody:
-    def __init__(self, response: httpx.Response, client_request_id: str) -> None:
+    def __init__(
+        self,
+        response: httpx.Response,
+        client_request_id: str,
+        total_bytes: int | None = None,
+    ) -> None:
         self._response = response
         self.client_request_id = client_request_id
+        self.total_bytes = total_bytes
         self._consumed = False
 
     def _check(self) -> None:
@@ -150,18 +156,46 @@ class AsyncStreamingBody:
             raise RuntimeError("AsyncStreamingBody already consumed")
         self._consumed = True
 
-    async def read(self) -> bytes:
+    async def read(self, on_progress=None) -> bytes:
         self._check()
         try:
-            return await self._response.aread()
+            data = await self._response.aread()
+        finally:
+            await self._response.aclose()
+        if on_progress is not None:
+            from ._models import ProgressEvent
+            on_progress(ProgressEvent(
+                bytes_transferred=len(data),
+                total_bytes=self.total_bytes or len(data),
+            ))
+        return data
+
+    async def iter_bytes(self, chunk_size: int = 65536, on_progress=None):
+        self._check()
+        from ._models import ProgressEvent
+        total = self.total_bytes or 0
+        done = 0
+        try:
+            async for chunk in self._response.aiter_bytes(chunk_size):
+                done += len(chunk)
+                yield chunk
+                if on_progress is not None:
+                    on_progress(ProgressEvent(bytes_transferred=done, total_bytes=total))
         finally:
             await self._response.aclose()
 
-    async def iter_bytes(self, chunk_size: int = 65536):
+    async def save_to(self, path, on_progress=None) -> None:
         self._check()
+        from ._models import ProgressEvent
+        total = self.total_bytes or 0
+        done = 0
         try:
-            async for chunk in self._response.aiter_bytes(chunk_size):
-                yield chunk
+            with open(path, "wb") as f:
+                async for chunk in self._response.aiter_bytes(65536):
+                    f.write(chunk)
+                    done += len(chunk)
+                    if on_progress is not None:
+                        on_progress(ProgressEvent(bytes_transferred=done, total_bytes=total))
         finally:
             await self._response.aclose()
 
@@ -180,7 +214,9 @@ class AsyncRawResponse:
         self.headers = dict(response.headers)
 
     def stream(self) -> AsyncStreamingBody:
-        return AsyncStreamingBody(self._response, self.client_request_id)
+        cl = self.headers.get("content-length")
+        total = int(cl) if cl is not None else None
+        return AsyncStreamingBody(self._response, self.client_request_id, total_bytes=total)
 
     async def read(self) -> bytes:
         if self._body is not None:
