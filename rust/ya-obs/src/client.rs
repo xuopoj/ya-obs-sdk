@@ -61,4 +61,15 @@ impl Client {
     ) -> Result<String, Error> {
         operations::presign::presign_get_object(&self.http.config, bucket, key, expires)
     }
+
+    pub async fn put_object_multipart(
+        &self,
+        bucket: &str,
+        key: &str,
+        body: Bytes,
+        part_size: usize,
+        concurrency: usize,
+    ) -> Result<PutObjectResponse, Error> {
+        crate::multipart::upload(&self.http, bucket, key, body, part_size, concurrency).await
+    }
 }
