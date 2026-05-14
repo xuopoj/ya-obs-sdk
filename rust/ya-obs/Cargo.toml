@@ -26,6 +26,7 @@ percent-encoding = { workspace = true }
 time = { workspace = true }
 uuid = { workspace = true }
 tracing = { workspace = true }
+fastrand = "2"
 
 [dev-dependencies]
 serde_json = { workspace = true }

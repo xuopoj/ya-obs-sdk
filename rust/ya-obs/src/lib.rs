@@ -4,6 +4,7 @@ pub mod config;
 pub mod credentials;
 pub mod error;
 pub mod models;
+pub mod retry;
 pub mod signer;
 pub mod url;
 pub mod xml;
