@@ -18,7 +18,8 @@ impl FromStr for ObsUri {
     type Err = ObsUriError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let rest = s.strip_prefix("obs://")
+        let rest = s
+            .strip_prefix("obs://")
             .ok_or_else(|| ObsUriError::BadScheme(s.to_string()))?;
         let (bucket, key) = match rest.split_once('/') {
             Some((b, k)) => (b, k),
@@ -27,6 +28,9 @@ impl FromStr for ObsUri {
         if bucket.is_empty() {
             return Err(ObsUriError::NoBucket(s.to_string()));
         }
-        Ok(ObsUri { bucket: bucket.to_string(), key: key.to_string() })
+        Ok(ObsUri {
+            bucket: bucket.to_string(),
+            key: key.to_string(),
+        })
     }
 }

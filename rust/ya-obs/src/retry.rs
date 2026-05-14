@@ -62,5 +62,8 @@ pub fn parse_retry_after(value: &str) -> Option<Duration> {
     }
     let dt = OffsetDateTime::parse(value.trim(), &Rfc2822).ok()?;
     let target: SystemTime = dt.into();
-    target.duration_since(SystemTime::now()).ok().or(Some(Duration::ZERO))
+    target
+        .duration_since(SystemTime::now())
+        .ok()
+        .or(Some(Duration::ZERO))
 }

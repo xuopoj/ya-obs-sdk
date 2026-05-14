@@ -5,19 +5,49 @@ use crate::xml::parse_error_response;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("NoSuchKey: {message} (request_id={request_id})")]
-    NoSuchKey { code: String, message: String, status: u16, request_id: String, host_id: String },
+    NoSuchKey {
+        code: String,
+        message: String,
+        status: u16,
+        request_id: String,
+        host_id: String,
+    },
 
     #[error("NoSuchBucket: {message} (request_id={request_id})")]
-    NoSuchBucket { code: String, message: String, status: u16, request_id: String, host_id: String },
+    NoSuchBucket {
+        code: String,
+        message: String,
+        status: u16,
+        request_id: String,
+        host_id: String,
+    },
 
     #[error("AccessDenied: {message} (request_id={request_id})")]
-    AccessDenied { code: String, message: String, status: u16, request_id: String, host_id: String },
+    AccessDenied {
+        code: String,
+        message: String,
+        status: u16,
+        request_id: String,
+        host_id: String,
+    },
 
     #[error("client error {status} {code}: {message}")]
-    Client { code: String, message: String, status: u16, request_id: String, host_id: String },
+    Client {
+        code: String,
+        message: String,
+        status: u16,
+        request_id: String,
+        host_id: String,
+    },
 
     #[error("server error {status} {code}: {message}")]
-    Server { code: String, message: String, status: u16, request_id: String, host_id: String },
+    Server {
+        code: String,
+        message: String,
+        status: u16,
+        request_id: String,
+        host_id: String,
+    },
 
     #[error("HTTP transport error: {0}")]
     Transport(#[from] reqwest::Error),

@@ -14,10 +14,18 @@ fn client(sv: SigningVersion) -> Client {
 #[test]
 fn presign_v4_includes_required_params() {
     let url = client(SigningVersion::V4)
-        .presign_get_object("my-bucket", "k.jpg", 3600).unwrap();
+        .presign_get_object("my-bucket", "k.jpg", 3600)
+        .unwrap();
     let parsed = url::Url::parse(&url).unwrap();
     let qs: HashMap<String, String> = parsed.query_pairs().into_owned().collect();
-    for k in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Date", "X-Amz-Expires", "X-Amz-SignedHeaders", "X-Amz-Signature"] {
+    for k in [
+        "X-Amz-Algorithm",
+        "X-Amz-Credential",
+        "X-Amz-Date",
+        "X-Amz-Expires",
+        "X-Amz-SignedHeaders",
+        "X-Amz-Signature",
+    ] {
         assert!(qs.contains_key(k), "missing {k}");
     }
 }
@@ -25,7 +33,8 @@ fn presign_v4_includes_required_params() {
 #[test]
 fn presign_v2_includes_required_params() {
     let url = client(SigningVersion::V2)
-        .presign_get_object("my-bucket", "k.jpg", 3600).unwrap();
+        .presign_get_object("my-bucket", "k.jpg", 3600)
+        .unwrap();
     let parsed = url::Url::parse(&url).unwrap();
     let qs: HashMap<String, String> = parsed.query_pairs().into_owned().collect();
     for k in ["AccessKeyId", "Expires", "Signature"] {

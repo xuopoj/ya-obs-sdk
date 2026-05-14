@@ -8,7 +8,11 @@ fn build_client(cli: &Cli) -> Result<Client> {
     let mut cfg = match (&cli.endpoint, &cli.region) {
         (Some(ep), _) => ClientConfig::for_endpoint(ep),
         (None, Some(r)) => ClientConfig::for_region(r),
-        (None, None) => return Err(anyhow!("set --region or --endpoint (or env YA_OBS_REGION / YA_OBS_ENDPOINT)")),
+        (None, None) => {
+            return Err(anyhow!(
+                "set --region or --endpoint (or env YA_OBS_REGION / YA_OBS_ENDPOINT)"
+            ))
+        }
     };
     if let (Some(ak), Some(sk)) = (&cli.access_key, &cli.secret_key) {
         cfg = cfg.with_credentials(Credentials::new(ak, sk));

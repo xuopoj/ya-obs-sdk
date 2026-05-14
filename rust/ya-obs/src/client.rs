@@ -25,19 +25,11 @@ impl Client {
         operations::put_object::put_object(&self.http, bucket, key, body).await
     }
 
-    pub async fn get_object(
-        &self,
-        bucket: &str,
-        key: &str,
-    ) -> Result<GetObjectResponse, Error> {
+    pub async fn get_object(&self, bucket: &str, key: &str) -> Result<GetObjectResponse, Error> {
         operations::get_object::get_object(&self.http, bucket, key).await
     }
 
-    pub async fn head_object(
-        &self,
-        bucket: &str,
-        key: &str,
-    ) -> Result<HeadObjectResponse, Error> {
+    pub async fn head_object(&self, bucket: &str, key: &str) -> Result<HeadObjectResponse, Error> {
         operations::head_object::head_object(&self.http, bucket, key).await
     }
 

@@ -11,7 +11,9 @@ use crate::xml::{parse_initiate_multipart_result, serialize_complete_multipart};
 async fn initiate(http: &HttpClient, bucket: &str, key: &str) -> Result<String, Error> {
     let mut url = build_object_url(&http.config, bucket, key)?;
     url.query_pairs_mut().append_pair("uploads", "");
-    let resp = http.send(Method::POST, url, Vec::new(), Bytes::new()).await?;
+    let resp = http
+        .send(Method::POST, url, Vec::new(), Bytes::new())
+        .await?;
     let body = resp.text().await.map_err(Error::Transport)?;
     Ok(parse_initiate_multipart_result(&body)?.upload_id)
 }
@@ -30,8 +32,12 @@ async fn upload_part(
         .append_pair("uploadId", upload_id);
     let headers = vec![("Content-Length".to_string(), body.len().to_string())];
     let resp = http.send(Method::PUT, url, headers, body).await?;
-    let etag = resp.headers().get("etag")
-        .and_then(|v| v.to_str().ok()).unwrap_or_default().to_string();
+    let etag = resp
+        .headers()
+        .get("etag")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default()
+        .to_string();
     Ok((part_number, etag))
 }
 
@@ -49,18 +55,28 @@ async fn complete(
         ("Content-Type".to_string(), "application/xml".to_string()),
         ("Content-Length".to_string(), xml.len().to_string()),
     ];
-    let resp = http.send(Method::POST, url, headers, Bytes::from(xml)).await?;
-    let etag = resp.headers().get("etag")
-        .and_then(|v| v.to_str().ok()).unwrap_or_default().to_string();
-    let request_id = resp.headers().get("x-obs-request-id")
-        .and_then(|v| v.to_str().ok()).map(|s| s.to_string());
+    let resp = http
+        .send(Method::POST, url, headers, Bytes::from(xml))
+        .await?;
+    let etag = resp
+        .headers()
+        .get("etag")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default()
+        .to_string();
+    let request_id = resp
+        .headers()
+        .get("x-obs-request-id")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
     Ok(PutObjectResponse { etag, request_id })
 }
 
 async fn abort(http: &HttpClient, bucket: &str, key: &str, upload_id: &str) -> Result<(), Error> {
     let mut url = build_object_url(&http.config, bucket, key)?;
     url.query_pairs_mut().append_pair("uploadId", upload_id);
-    http.send(Method::DELETE, url, Vec::new(), Bytes::new()).await?;
+    http.send(Method::DELETE, url, Vec::new(), Bytes::new())
+        .await?;
     Ok(())
 }
 
@@ -103,7 +119,8 @@ pub async fn upload(
         }
         finished.sort_by_key(|(n, _)| *n);
         Ok(finished)
-    }.await;
+    }
+    .await;
 
     match result {
         Ok(parts) => complete(http, bucket, key, &upload_id, parts).await,

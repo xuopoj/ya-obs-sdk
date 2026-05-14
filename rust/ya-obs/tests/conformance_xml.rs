@@ -10,7 +10,10 @@ fn list_objects_response_parses_to_expected_objects() {
     let result = parse_list_bucket_result(xml).expect("parse ok");
 
     assert_eq!(result.name, v["expected"]["name"].as_str().unwrap());
-    assert_eq!(result.is_truncated, v["expected"]["is_truncated"].as_bool().unwrap());
+    assert_eq!(
+        result.is_truncated,
+        v["expected"]["is_truncated"].as_bool().unwrap()
+    );
     assert!(result.next_marker.is_none());
 
     let expected_objects = v["expected"]["objects"].as_array().unwrap();
@@ -37,7 +40,10 @@ fn error_response_parses_to_expected_fields() {
 
     assert_eq!(err.code, v["expected"]["code"].as_str().unwrap());
     assert_eq!(err.message, v["expected"]["message"].as_str().unwrap());
-    assert_eq!(err.request_id, v["expected"]["request_id"].as_str().unwrap());
+    assert_eq!(
+        err.request_id,
+        v["expected"]["request_id"].as_str().unwrap()
+    );
     assert_eq!(err.host_id, v["expected"]["host_id"].as_str().unwrap());
 }
 
@@ -60,10 +66,12 @@ fn complete_multipart_request_serializes_to_expected_xml() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|p| (
-            p["part_number"].as_u64().unwrap() as u32,
-            p["etag"].as_str().unwrap().to_string(),
-        ))
+        .map(|p| {
+            (
+                p["part_number"].as_u64().unwrap() as u32,
+                p["etag"].as_str().unwrap().to_string(),
+            )
+        })
         .collect();
 
     let actual = serialize_complete_multipart(&parts);

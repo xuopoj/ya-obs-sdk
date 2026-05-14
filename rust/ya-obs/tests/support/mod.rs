@@ -16,8 +16,7 @@ pub fn vectors_dir() -> PathBuf {
 /// Read and parse a JSON test vector at `test-vectors/<category>/<name>.json`.
 pub fn load_vector(category: &str, name: &str) -> serde_json::Value {
     let path = vectors_dir().join(category).join(format!("{name}.json"));
-    let raw = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-    serde_json::from_str(&raw)
-        .unwrap_or_else(|e| panic!("parse {}: {e}", path.display()))
+    let raw =
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    serde_json::from_str(&raw).unwrap_or_else(|e| panic!("parse {}: {e}", path.display()))
 }

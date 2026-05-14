@@ -114,7 +114,9 @@ pub fn parse_initiate_multipart_result(
 pub fn serialize_complete_multipart(parts: &[(u32, String)]) -> String {
     let mut out = String::from("<CompleteMultipartUpload>");
     for (n, etag) in parts {
-        out.push_str(&format!("<Part><PartNumber>{n}</PartNumber><ETag>{etag}</ETag></Part>"));
+        out.push_str(&format!(
+            "<Part><PartNumber>{n}</PartNumber><ETag>{etag}</ETag></Part>"
+        ));
     }
     out.push_str("</CompleteMultipartUpload>");
     out

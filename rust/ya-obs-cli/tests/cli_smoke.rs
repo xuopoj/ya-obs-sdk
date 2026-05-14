@@ -3,7 +3,8 @@ use predicates::str::contains;
 
 #[test]
 fn help_prints_subcommands() {
-    Command::cargo_bin("ya-obs").unwrap()
+    Command::cargo_bin("ya-obs")
+        .unwrap()
         .arg("--help")
         .assert()
         .success()

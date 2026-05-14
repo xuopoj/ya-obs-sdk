@@ -28,7 +28,10 @@ pub struct Cli {
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
-pub enum SignVer { V4, V2 }
+pub enum SignVer {
+    V4,
+    V2,
+}
 
 #[derive(Debug, Subcommand)]
 pub enum Cmd {

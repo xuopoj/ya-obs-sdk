@@ -86,7 +86,10 @@ fn v4_header_basic_authorization_starts_with_expected_prefix() {
         auth.starts_with(prefix),
         "authorization header {auth:?} should start with {prefix:?}"
     );
-    assert!(auth.contains(", Signature="), "missing Signature= component");
+    assert!(
+        auth.contains(", Signature="),
+        "missing Signature= component"
+    );
 }
 
 use ya_obs::signer::v4::presign_url;
@@ -109,14 +112,19 @@ fn v4_presign_basic_url_has_required_params_and_signature() {
     );
 
     let parsed = url::Url::parse(&url).unwrap();
-    let qs: std::collections::HashMap<String, String> =
-        parsed.query_pairs().into_owned().collect();
+    let qs: std::collections::HashMap<String, String> = parsed.query_pairs().into_owned().collect();
 
     for required in v["expected"]["required_params"].as_array().unwrap() {
         let k = required.as_str().unwrap();
         assert!(qs.contains_key(k), "missing required param {k}");
     }
-    assert_eq!(qs["X-Amz-Algorithm"], v["expected"]["algorithm"].as_str().unwrap());
-    assert_eq!(qs["X-Amz-Expires"], v["expected"]["expires"].as_str().unwrap());
+    assert_eq!(
+        qs["X-Amz-Algorithm"],
+        v["expected"]["algorithm"].as_str().unwrap()
+    );
+    assert_eq!(
+        qs["X-Amz-Expires"],
+        v["expected"]["expires"].as_str().unwrap()
+    );
     assert!(!qs["X-Amz-Signature"].is_empty());
 }

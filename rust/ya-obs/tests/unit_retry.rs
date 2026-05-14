@@ -18,14 +18,23 @@ fn retry_policy_retries_429_and_408() {
 #[test]
 fn retry_policy_does_not_retry_4xx_other() {
     let p = RetryPolicy::default();
-    assert!(matches!(p.classify(404, None, 0), RetryDecision::DoNotRetry));
-    assert!(matches!(p.classify(403, None, 0), RetryDecision::DoNotRetry));
+    assert!(matches!(
+        p.classify(404, None, 0),
+        RetryDecision::DoNotRetry
+    ));
+    assert!(matches!(
+        p.classify(403, None, 0),
+        RetryDecision::DoNotRetry
+    ));
 }
 
 #[test]
 fn retry_policy_stops_after_max_attempts() {
     let p = RetryPolicy::default();
-    assert!(matches!(p.classify(503, None, 2), RetryDecision::DoNotRetry));
+    assert!(matches!(
+        p.classify(503, None, 2),
+        RetryDecision::DoNotRetry
+    ));
 }
 
 #[test]

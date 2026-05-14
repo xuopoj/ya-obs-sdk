@@ -28,7 +28,11 @@ impl HttpClient {
             .timeout(config.read_timeout)
             .build()
             .map_err(Error::Transport)?;
-        Ok(Self { inner, config, retry: RetryPolicy::default() })
+        Ok(Self {
+            inner,
+            config,
+            retry: RetryPolicy::default(),
+        })
     }
 
     fn credentials(&self) -> Result<&Credentials, Error> {
@@ -63,7 +67,10 @@ impl HttpClient {
                 .and_then(|h| h.to_str().ok())
                 .map(|s| s.to_string());
 
-            match self.retry.classify(status, retry_after.as_deref(), attempts) {
+            match self
+                .retry
+                .classify(status, retry_after.as_deref(), attempts)
+            {
                 RetryDecision::Retry(delay) => {
                     tokio::time::sleep(delay).await;
                     attempts += 1;
@@ -88,11 +95,11 @@ impl HttpClient {
         let now = OffsetDateTime::now_utc();
 
         let mut headers: Vec<(String, String)> = extra_headers.to_vec();
-        headers.push(("Host".into(), url.host_str().unwrap_or_default().to_string()));
         headers.push((
-            "x-ya-obs-client-id".into(),
-            Uuid::new_v4().to_string(),
+            "Host".into(),
+            url.host_str().unwrap_or_default().to_string(),
         ));
+        headers.push(("x-ya-obs-client-id".into(), Uuid::new_v4().to_string()));
 
         let auth = match self.config.signing_version {
             SigningVersion::V4 => {
@@ -108,7 +115,8 @@ impl HttpClient {
                 headers.push(("x-amz-content-sha256".into(), body_sha.clone()));
 
                 let mut header_pairs: Vec<(String, String)> = headers.clone();
-                header_pairs.sort_by(|a, b| a.0.to_ascii_lowercase().cmp(&b.0.to_ascii_lowercase()));
+                header_pairs
+                    .sort_by(|a, b| a.0.to_ascii_lowercase().cmp(&b.0.to_ascii_lowercase()));
 
                 v4::authorization_header(
                     method.as_str(),
@@ -157,7 +165,9 @@ impl HttpClient {
             .request(method.clone(), url.clone())
             .body(body.clone());
         for (k, v) in headers {
-            if k.eq_ignore_ascii_case("host") { continue; }
+            if k.eq_ignore_ascii_case("host") {
+                continue;
+            }
             req = req.header(&k, &v);
         }
         req.build().map_err(Error::Transport)

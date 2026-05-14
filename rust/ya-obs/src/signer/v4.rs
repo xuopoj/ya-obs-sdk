@@ -4,11 +4,34 @@ use url::Url;
 /// Characters allowed in SigV4 canonical URIs — everything outside `unreserved`
 /// gets percent-encoded.
 const PATH_ENCODE_SET: &AsciiSet = &CONTROLS
-    .add(b' ').add(b'"').add(b'#').add(b'<').add(b'>').add(b'?')
-    .add(b'`').add(b'{').add(b'}').add(b'^').add(b'|').add(b'\\')
-    .add(b'%').add(b'+').add(b'!').add(b'$').add(b'&').add(b'\'')
-    .add(b'(').add(b')').add(b'*').add(b',').add(b';').add(b'=')
-    .add(b':').add(b'@').add(b'[').add(b']');
+    .add(b' ')
+    .add(b'"')
+    .add(b'#')
+    .add(b'<')
+    .add(b'>')
+    .add(b'?')
+    .add(b'`')
+    .add(b'{')
+    .add(b'}')
+    .add(b'^')
+    .add(b'|')
+    .add(b'\\')
+    .add(b'%')
+    .add(b'+')
+    .add(b'!')
+    .add(b'$')
+    .add(b'&')
+    .add(b'\'')
+    .add(b'(')
+    .add(b')')
+    .add(b'*')
+    .add(b',')
+    .add(b';')
+    .add(b'=')
+    .add(b':')
+    .add(b'@')
+    .add(b'[')
+    .add(b']');
 
 fn encode_path_segment(seg: &str) -> String {
     utf8_percent_encode(seg, PATH_ENCODE_SET).to_string()
@@ -19,7 +42,10 @@ fn canonical_uri(url: &Url) -> String {
     if path.is_empty() {
         return "/".into();
     }
-    path.split('/').map(encode_path_segment).collect::<Vec<_>>().join("/")
+    path.split('/')
+        .map(encode_path_segment)
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 fn canonical_query(url: &Url) -> String {
@@ -33,7 +59,11 @@ fn canonical_query(url: &Url) -> String {
         })
         .collect();
     pairs.sort();
-    pairs.into_iter().map(|(k, v)| format!("{k}={v}")).collect::<Vec<_>>().join("&")
+    pairs
+        .into_iter()
+        .map(|(k, v)| format!("{k}={v}"))
+        .collect::<Vec<_>>()
+        .join("&")
 }
 
 /// Build the SigV4 canonical request string.
@@ -55,10 +85,7 @@ pub fn canonical_request(
         .collect();
     lowered.sort_by(|a, b| a.0.cmp(&b.0));
 
-    let canonical_headers: String = lowered
-        .iter()
-        .map(|(k, v)| format!("{k}:{v}\n"))
-        .collect();
+    let canonical_headers: String = lowered.iter().map(|(k, v)| format!("{k}:{v}\n")).collect();
 
     let signed_headers = lowered
         .iter()
@@ -66,9 +93,7 @@ pub fn canonical_request(
         .collect::<Vec<_>>()
         .join(";");
 
-    format!(
-        "{method}\n{uri}\n{query}\n{canonical_headers}\n{signed_headers}\n{body_sha256}"
-    )
+    format!("{method}\n{uri}\n{query}\n{canonical_headers}\n{signed_headers}\n{body_sha256}")
 }
 
 use hmac::{Hmac, Mac};
@@ -98,9 +123,7 @@ pub fn string_to_sign(
     service: &str,
     _canonical_request: &str,
 ) -> String {
-    format!(
-        "AWS4-HMAC-SHA256\n{amz_date}\n{date}/{region}/{service}/aws4_request\n"
-    )
+    format!("AWS4-HMAC-SHA256\n{amz_date}\n{date}/{region}/{service}/aws4_request\n")
 }
 
 /// Derive the SigV4 signing key.
@@ -167,7 +190,8 @@ pub fn presign_url(
 
     let credential = format!("{access_key}/{date}/{region}/{service}/aws4_request");
 
-    parsed.query_pairs_mut()
+    parsed
+        .query_pairs_mut()
         .append_pair("X-Amz-Algorithm", "AWS4-HMAC-SHA256")
         .append_pair("X-Amz-Credential", &credential)
         .append_pair("X-Amz-Date", amz_date)
@@ -186,6 +210,8 @@ pub fn presign_url(
     let key = signing_key(secret_key, date, region, service);
     let signature = hex::encode(hmac_sha256(&key, to_sign.as_bytes()));
 
-    parsed.query_pairs_mut().append_pair("X-Amz-Signature", &signature);
+    parsed
+        .query_pairs_mut()
+        .append_pair("X-Amz-Signature", &signature);
     parsed.to_string()
 }

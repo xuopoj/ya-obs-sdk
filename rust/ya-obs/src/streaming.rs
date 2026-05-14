@@ -18,6 +18,8 @@ impl StreamingBody {
     }
 
     pub fn into_stream(self) -> impl futures::Stream<Item = Result<Bytes, Error>> {
-        self.inner.bytes_stream().map(|r| r.map_err(Error::Transport))
+        self.inner
+            .bytes_stream()
+            .map(|r| r.map_err(Error::Transport))
     }
 }

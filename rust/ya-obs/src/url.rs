@@ -5,8 +5,17 @@ use crate::config::{AddressingStyle, ClientConfig};
 use crate::error::Error;
 
 const KEY_ENCODE_SET: &AsciiSet = &CONTROLS
-    .add(b' ').add(b'"').add(b'#').add(b'<').add(b'>').add(b'?')
-    .add(b'`').add(b'{').add(b'}').add(b'%').add(b'+');
+    .add(b' ')
+    .add(b'"')
+    .add(b'#')
+    .add(b'<')
+    .add(b'>')
+    .add(b'?')
+    .add(b'`')
+    .add(b'{')
+    .add(b'}')
+    .add(b'%')
+    .add(b'+');
 
 fn encode_key(key: &str) -> String {
     key.split('/')
@@ -16,7 +25,11 @@ fn encode_key(key: &str) -> String {
 }
 
 fn is_dns_safe_bucket(bucket: &str) -> bool {
-    !bucket.is_empty() && !bucket.contains('.') && bucket.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+    !bucket.is_empty()
+        && !bucket.contains('.')
+        && bucket
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-')
 }
 
 /// Returns `(scheme, host_with_port)`. When an explicit endpoint is configured
@@ -34,9 +47,14 @@ fn base_origin(cfg: &ClientConfig) -> Result<(String, String), Error> {
         };
         Ok((u.scheme().to_string(), host_with_port))
     } else if let Some(region) = &cfg.region {
-        Ok(("https".to_string(), format!("obs.{region}.myhuaweicloud.com")))
+        Ok((
+            "https".to_string(),
+            format!("obs.{region}.myhuaweicloud.com"),
+        ))
     } else {
-        Err(Error::Config("either region or endpoint must be set".into()))
+        Err(Error::Config(
+            "either region or endpoint must be set".into(),
+        ))
     }
 }
 
@@ -44,7 +62,11 @@ pub fn build_object_url(cfg: &ClientConfig, bucket: &str, key: &str) -> Result<U
     let (scheme, host) = base_origin(cfg)?;
     let style = match cfg.addressing_style {
         AddressingStyle::Auto => {
-            if is_dns_safe_bucket(bucket) { AddressingStyle::Virtual } else { AddressingStyle::Path }
+            if is_dns_safe_bucket(bucket) {
+                AddressingStyle::Virtual
+            } else {
+                AddressingStyle::Path
+            }
         }
         s => s,
     };

@@ -14,21 +14,33 @@ const INITIATE_XML: &str = r#"<?xml version="1.0"?>
 async fn multipart_uploads_two_parts_and_completes() {
     let server = MockServer::start().await;
 
-    Mock::given(method("POST")).and(path("/b/k")).and(query_param("uploads", ""))
+    Mock::given(method("POST"))
+        .and(path("/b/k"))
+        .and(query_param("uploads", ""))
         .respond_with(ResponseTemplate::new(200).set_body_string(INITIATE_XML))
-        .mount(&server).await;
+        .mount(&server)
+        .await;
 
-    Mock::given(method("PUT")).and(path("/b/k")).and(query_param("partNumber", "1"))
+    Mock::given(method("PUT"))
+        .and(path("/b/k"))
+        .and(query_param("partNumber", "1"))
         .respond_with(ResponseTemplate::new(200).insert_header("ETag", "\"p1\""))
-        .mount(&server).await;
+        .mount(&server)
+        .await;
 
-    Mock::given(method("PUT")).and(path("/b/k")).and(query_param("partNumber", "2"))
+    Mock::given(method("PUT"))
+        .and(path("/b/k"))
+        .and(query_param("partNumber", "2"))
         .respond_with(ResponseTemplate::new(200).insert_header("ETag", "\"p2\""))
-        .mount(&server).await;
+        .mount(&server)
+        .await;
 
-    Mock::given(method("POST")).and(path("/b/k")).and(query_param("uploadId", "upload-xyz"))
+    Mock::given(method("POST"))
+        .and(path("/b/k"))
+        .and(query_param("uploadId", "upload-xyz"))
         .respond_with(ResponseTemplate::new(200).insert_header("ETag", "\"final\""))
-        .mount(&server).await;
+        .mount(&server)
+        .await;
 
     let mut cfg = ClientConfig::for_endpoint(server.uri())
         .with_credentials(Credentials::new("AK", "SK"))
@@ -38,6 +50,9 @@ async fn multipart_uploads_two_parts_and_completes() {
     let client = Client::new(cfg).unwrap();
     let mut body = vec![0u8; 10 * 1024 * 1024];
     body[0] = 1;
-    let resp = client.put_object_multipart("b", "k", Bytes::from(body), 5 * 1024 * 1024, 2).await.unwrap();
+    let resp = client
+        .put_object_multipart("b", "k", Bytes::from(body), 5 * 1024 * 1024, 2)
+        .await
+        .unwrap();
     assert_eq!(resp.etag, "\"final\"");
 }

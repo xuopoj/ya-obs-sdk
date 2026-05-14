@@ -103,8 +103,7 @@ fn v2_presign_basic_url_has_required_params() {
     assert_eq!(sts, v["expected"]["string_to_sign"].as_str().unwrap());
 
     let parsed = url::Url::parse(&url).unwrap();
-    let qs: std::collections::HashMap<String, String> =
-        parsed.query_pairs().into_owned().collect();
+    let qs: std::collections::HashMap<String, String> = parsed.query_pairs().into_owned().collect();
     for k in v["expected"]["required_params"].as_array().unwrap() {
         assert!(qs.contains_key(k.as_str().unwrap()));
     }

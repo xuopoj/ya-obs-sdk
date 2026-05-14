@@ -23,7 +23,10 @@ fn check_vector(name: &str, expected_variant_name: &str) {
 
     assert_eq!(err.code(), v["expected"]["code"].as_str().unwrap());
     assert_eq!(err.message(), v["expected"]["message"].as_str().unwrap());
-    assert_eq!(err.status(), v["expected"]["status"].as_u64().unwrap() as u16);
+    assert_eq!(
+        err.status(),
+        v["expected"]["status"].as_u64().unwrap() as u16
+    );
 }
 
 #[test]

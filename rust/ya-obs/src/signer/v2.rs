@@ -41,9 +41,7 @@ pub fn string_to_sign(
         format!("{canon_headers}\n")
     };
 
-    format!(
-        "{method}\n{content_md5}\n{content_type}\n{date}\n{header_line}{resource}"
-    )
+    format!("{method}\n{content_md5}\n{content_type}\n{date}\n{header_line}{resource}")
 }
 
 fn sign(secret_key: &str, to_sign: &str) -> String {
@@ -64,7 +62,15 @@ pub fn authorization_header(
     access_key: &str,
     secret_key: &str,
 ) -> String {
-    let to_sign = string_to_sign(method, content_md5, content_type, date, obs_headers, bucket, key);
+    let to_sign = string_to_sign(
+        method,
+        content_md5,
+        content_type,
+        date,
+        obs_headers,
+        bucket,
+        key,
+    );
     let signature = sign(secret_key, &to_sign);
     format!("OBS {access_key}:{signature}")
 }
@@ -86,11 +92,20 @@ pub fn presign_url(
     access_key: &str,
     secret_key: &str,
 ) -> (String, String) {
-    let sts = string_to_sign(method, "", "", &expires_unix.to_string(), obs_headers, bucket, key);
+    let sts = string_to_sign(
+        method,
+        "",
+        "",
+        &expires_unix.to_string(),
+        obs_headers,
+        bucket,
+        key,
+    );
     let signature = sign(secret_key, &sts);
 
     let mut parsed = Url::parse(url).expect("valid url");
-    parsed.query_pairs_mut()
+    parsed
+        .query_pairs_mut()
         .append_pair("AccessKeyId", access_key)
         .append_pair("Expires", &expires_unix.to_string())
         .append_pair("Signature", &signature);

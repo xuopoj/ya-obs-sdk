@@ -26,7 +26,9 @@ pub async fn list_objects(
             }
         }
 
-        let resp = http.send(Method::GET, url, Vec::new(), bytes::Bytes::new()).await?;
+        let resp = http
+            .send(Method::GET, url, Vec::new(), bytes::Bytes::new())
+            .await?;
         let body = resp.text().await.map_err(Error::Transport)?;
         let page = parse_list_bucket_result(&body)?;
 
