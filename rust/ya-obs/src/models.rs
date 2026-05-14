@@ -16,3 +16,18 @@ pub struct ListedObject {
     /// ISO-8601 with offset, e.g. `2024-01-15T10:30:00+00:00`.
     pub last_modified: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ErrorResponse {
+    pub code: String,
+    pub message: String,
+    pub request_id: String,
+    pub host_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InitiateMultipartResult {
+    pub bucket: String,
+    pub key: String,
+    pub upload_id: String,
+}
