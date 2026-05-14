@@ -88,3 +88,35 @@ fn v4_header_basic_authorization_starts_with_expected_prefix() {
     );
     assert!(auth.contains(", Signature="), "missing Signature= component");
 }
+
+use ya_obs::signer::v4::presign_url;
+
+#[test]
+fn v4_presign_basic_url_has_required_params_and_signature() {
+    let v = support::load_vector("auth", "v4_presign_basic");
+    let input = &v["input"];
+
+    let url = presign_url(
+        input["method"].as_str().unwrap(),
+        input["url"].as_str().unwrap(),
+        input["access_key"].as_str().unwrap(),
+        input["secret_key"].as_str().unwrap(),
+        input["datetime"].as_str().unwrap(),
+        input["date"].as_str().unwrap(),
+        input["region"].as_str().unwrap(),
+        input["service"].as_str().unwrap(),
+        input["expires"].as_u64().unwrap(),
+    );
+
+    let parsed = url::Url::parse(&url).unwrap();
+    let qs: std::collections::HashMap<String, String> =
+        parsed.query_pairs().into_owned().collect();
+
+    for required in v["expected"]["required_params"].as_array().unwrap() {
+        let k = required.as_str().unwrap();
+        assert!(qs.contains_key(k), "missing required param {k}");
+    }
+    assert_eq!(qs["X-Amz-Algorithm"], v["expected"]["algorithm"].as_str().unwrap());
+    assert_eq!(qs["X-Amz-Expires"], v["expected"]["expires"].as_str().unwrap());
+    assert!(!qs["X-Amz-Signature"].is_empty());
+}

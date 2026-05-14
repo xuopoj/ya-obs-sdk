@@ -148,3 +148,44 @@ pub fn authorization_header(
          SignedHeaders={signed_headers}, Signature={signature}"
     )
 }
+
+/// Build a SigV4 presigned URL by adding `X-Amz-*` query parameters.
+#[allow(clippy::too_many_arguments)]
+pub fn presign_url(
+    method: &str,
+    url: &str,
+    access_key: &str,
+    secret_key: &str,
+    amz_date: &str,
+    date: &str,
+    region: &str,
+    service: &str,
+    expires: u64,
+) -> String {
+    let mut parsed = Url::parse(url).expect("valid url");
+    let host = parsed.host_str().expect("url must have host").to_string();
+
+    let credential = format!("{access_key}/{date}/{region}/{service}/aws4_request");
+
+    parsed.query_pairs_mut()
+        .append_pair("X-Amz-Algorithm", "AWS4-HMAC-SHA256")
+        .append_pair("X-Amz-Credential", &credential)
+        .append_pair("X-Amz-Date", amz_date)
+        .append_pair("X-Amz-Expires", &expires.to_string())
+        .append_pair("X-Amz-SignedHeaders", "host");
+
+    // For presigned URLs, the canonical request uses UNSIGNED-PAYLOAD as the
+    // body hash and includes only the `host` header.
+    let headers = vec![("host".to_string(), host)];
+    let canonical = canonical_request(method, parsed.as_str(), &headers, "UNSIGNED-PAYLOAD");
+    let hashed_canonical = sha256_hex(canonical.as_bytes());
+
+    let to_sign = format!(
+        "AWS4-HMAC-SHA256\n{amz_date}\n{date}/{region}/{service}/aws4_request\n{hashed_canonical}"
+    );
+    let key = signing_key(secret_key, date, region, service);
+    let signature = hex::encode(hmac_sha256(&key, to_sign.as_bytes()));
+
+    parsed.query_pairs_mut().append_pair("X-Amz-Signature", &signature);
+    parsed.to_string()
+}
