@@ -31,3 +31,9 @@ pub struct InitiateMultipartResult {
     pub key: String,
     pub upload_id: String,
 }
+
+#[derive(Debug, Clone)]
+pub struct PutObjectResponse {
+    pub etag: String,
+    pub request_id: Option<String>,
+}
