@@ -3,7 +3,7 @@
 All notable changes to the `ya-obs` and `ya-obs-cli` crates.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.1.1] - 2026-05-14
 
 ### Added
 - `ya-obs-cli` reads `$XDG_CONFIG_HOME/ya-obs/config.toml` (defaulting to
@@ -21,8 +21,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - Clearer error when V4 signing is selected without a region.
+- `clippy::unnecessary_sort_by` lint surfaced by stable rustc 1.95.
 
-## [0.1.0] - unreleased
+## [0.1.0] - 2026-05-14
 
 ### Added
 - `ya-obs` library crate: SigV4 + OBS V2 signing (header + presigned), object

@@ -1,6 +1,6 @@
 [package]
 name = "ya-obs-cli"
-version = "0.1.0"
+version = "0.1.1"
 description = "Command-line interface for Huawei Cloud OBS, built on ya-obs"
 edition.workspace = true
 license.workspace = true

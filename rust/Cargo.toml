@@ -9,7 +9,7 @@ repository = "https://github.com/xuopoj/ya-obs-sdk"
 authors = ["Sean <xuopoj@gmail.com>"]
 
 [workspace.dependencies]
-ya-obs = { path = "ya-obs", version = "0.1.0" }
+ya-obs = { path = "ya-obs", version = "0.1.1" }
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "http2"] }
 bytes = "1"
