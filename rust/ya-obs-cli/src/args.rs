@@ -59,4 +59,13 @@ pub enum Cmd {
         #[arg(long, default_value_t = 3600)]
         expires: u64,
     },
+    /// Create a starter config file at the XDG location (~/.config/ya-obs/config.toml).
+    Init {
+        /// Custom path (overrides --config and the default XDG location).
+        #[arg(long)]
+        path: Option<String>,
+        /// Overwrite an existing config file.
+        #[arg(long)]
+        force: bool,
+    },
 }

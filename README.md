@@ -73,7 +73,15 @@ ya-obs --region cn-north-4 presign obs://my-bucket/file.txt --expires 3600
 
 ### CLI config file
 
-The CLI also reads `~/.config/ya-obs/config.toml` (or `$XDG_CONFIG_HOME/ya-obs/config.toml`):
+Generate a starter file:
+
+```bash
+ya-obs init                          # writes ~/.config/ya-obs/config.toml
+ya-obs init --path ./local.toml      # custom path
+ya-obs init --force                  # overwrite existing
+```
+
+The CLI reads `~/.config/ya-obs/config.toml` (or `$XDG_CONFIG_HOME/ya-obs/config.toml`):
 
 ```toml
 [default]

@@ -97,6 +97,13 @@ async fn main() -> Result<()> {
         .init();
 
     let cli = Cli::parse();
+
+    // `init` is special: it doesn't need credentials or a region, so it
+    // bypasses the normal client-build path.
+    if let Cmd::Init { path, force } = &cli.cmd {
+        return commands::init::run(path.as_deref(), *force, default_config_path());
+    }
+
     let client = build_client(&cli)?;
 
     match &cli.cmd {
@@ -105,6 +112,7 @@ async fn main() -> Result<()> {
         Cmd::Cat { uri } => commands::cat::run(&client, uri).await?,
         Cmd::Presign { uri, expires } => commands::presign::run(&client, uri, *expires)?,
         Cmd::Cp { src, dst } => commands::cp::run(&client, src, dst).await?,
+        Cmd::Init { .. } => unreachable!("handled above"),
     }
     Ok(())
 }

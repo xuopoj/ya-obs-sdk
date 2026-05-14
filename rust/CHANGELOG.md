@@ -3,6 +3,13 @@
 All notable changes to the `ya-obs` and `ya-obs-cli` crates.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- `ya-obs init` subcommand scaffolds a starter config at
+  `~/.config/ya-obs/config.toml` (or `--path`); refuses to overwrite without
+  `--force`; sets file mode to 0600 on Unix.
+
 ## [0.1.1] - 2026-05-14
 
 ### Added
