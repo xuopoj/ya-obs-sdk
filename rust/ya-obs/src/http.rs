@@ -115,8 +115,7 @@ impl HttpClient {
                 headers.push(("x-amz-content-sha256".into(), body_sha.clone()));
 
                 let mut header_pairs: Vec<(String, String)> = headers.clone();
-                header_pairs
-                    .sort_by(|a, b| a.0.to_ascii_lowercase().cmp(&b.0.to_ascii_lowercase()));
+                header_pairs.sort_by_key(|a| a.0.to_ascii_lowercase());
 
                 v4::authorization_header(
                     method.as_str(),
