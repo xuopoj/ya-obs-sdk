@@ -3,7 +3,7 @@ use bytes::Bytes;
 use crate::config::ClientConfig;
 use crate::error::Error;
 use crate::http::HttpClient;
-use crate::models::PutObjectResponse;
+use crate::models::{GetObjectResponse, PutObjectResponse};
 use crate::operations;
 
 pub struct Client {
@@ -23,5 +23,13 @@ impl Client {
         body: Bytes,
     ) -> Result<PutObjectResponse, Error> {
         operations::put_object::put_object(&self.http, bucket, key, body).await
+    }
+
+    pub async fn get_object(
+        &self,
+        bucket: &str,
+        key: &str,
+    ) -> Result<GetObjectResponse, Error> {
+        operations::get_object::get_object(&self.http, bucket, key).await
     }
 }

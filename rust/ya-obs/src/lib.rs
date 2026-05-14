@@ -9,6 +9,7 @@ pub mod models;
 pub mod operations;
 pub mod retry;
 pub mod signer;
+pub mod streaming;
 pub mod url;
 pub mod xml;
 

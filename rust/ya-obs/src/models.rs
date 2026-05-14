@@ -37,3 +37,11 @@ pub struct PutObjectResponse {
     pub etag: String,
     pub request_id: Option<String>,
 }
+
+pub struct GetObjectResponse {
+    pub body: crate::streaming::StreamingBody,
+    pub content_type: Option<String>,
+    pub content_length: Option<u64>,
+    pub etag: String,
+    pub request_id: Option<String>,
+}
