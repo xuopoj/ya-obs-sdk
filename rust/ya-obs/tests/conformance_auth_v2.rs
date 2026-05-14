@@ -74,3 +74,38 @@ fn v2_header_basic_authorization_prefix() {
 
     assert!(auth.starts_with(v["expected"]["authorization_prefix"].as_str().unwrap()));
 }
+
+use ya_obs::signer::v2::presign_url;
+
+#[test]
+fn v2_presign_basic_url_has_required_params() {
+    let v = support::load_vector("auth", "v2_presign_basic");
+    let input = &v["input"];
+
+    let obs_headers: BTreeMap<String, String> = input["obs_headers"]
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(k, v)| (k.clone(), v.as_str().unwrap().to_string()))
+        .collect();
+
+    let (url, sts) = presign_url(
+        input["method"].as_str().unwrap(),
+        "https://my-bucket.obs.cn-north-4.myhuaweicloud.com/photos/cat.jpg",
+        input["bucket"].as_str().unwrap(),
+        input["key"].as_str().unwrap(),
+        input["expires_unix"].as_u64().unwrap(),
+        &obs_headers,
+        input["access_key"].as_str().unwrap(),
+        input["secret_key"].as_str().unwrap(),
+    );
+
+    assert_eq!(sts, v["expected"]["string_to_sign"].as_str().unwrap());
+
+    let parsed = url::Url::parse(&url).unwrap();
+    let qs: std::collections::HashMap<String, String> =
+        parsed.query_pairs().into_owned().collect();
+    for k in v["expected"]["required_params"].as_array().unwrap() {
+        assert!(qs.contains_key(k.as_str().unwrap()));
+    }
+}

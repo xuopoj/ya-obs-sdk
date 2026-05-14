@@ -68,3 +68,32 @@ pub fn authorization_header(
     let signature = sign(secret_key, &to_sign);
     format!("OBS {access_key}:{signature}")
 }
+
+use url::Url;
+
+/// OBS V2 presigned URL. For presigning, the "Date" line in the canonical
+/// string is the Unix-timestamp expiry, and Content-MD5/Content-Type are empty.
+///
+/// Returns `(url, string_to_sign)` so callers (and tests) can verify the STS.
+#[allow(clippy::too_many_arguments)]
+pub fn presign_url(
+    method: &str,
+    url: &str,
+    bucket: &str,
+    key: &str,
+    expires_unix: u64,
+    obs_headers: &BTreeMap<String, String>,
+    access_key: &str,
+    secret_key: &str,
+) -> (String, String) {
+    let sts = string_to_sign(method, "", "", &expires_unix.to_string(), obs_headers, bucket, key);
+    let signature = sign(secret_key, &sts);
+
+    let mut parsed = Url::parse(url).expect("valid url");
+    parsed.query_pairs_mut()
+        .append_pair("AccessKeyId", access_key)
+        .append_pair("Expires", &expires_unix.to_string())
+        .append_pair("Signature", &signature);
+
+    (parsed.to_string(), sts)
+}
