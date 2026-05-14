@@ -25,6 +25,9 @@ pub struct ClientConfig {
     pub connect_timeout: Duration,
     pub read_timeout: Duration,
     pub user_agent: String,
+    /// When true, accept any TLS certificate. Use only with trusted endpoints
+    /// behind a private CA — disables protection against MITM.
+    pub tls_verify_disabled: bool,
 }
 
 impl ClientConfig {
@@ -38,6 +41,7 @@ impl ClientConfig {
             connect_timeout: Duration::from_secs(10),
             read_timeout: Duration::from_secs(60),
             user_agent: format!("ya-obs/{}", env!("CARGO_PKG_VERSION")),
+            tls_verify_disabled: false,
         }
     }
 
@@ -51,6 +55,7 @@ impl ClientConfig {
             connect_timeout: Duration::from_secs(10),
             read_timeout: Duration::from_secs(60),
             user_agent: format!("ya-obs/{}", env!("CARGO_PKG_VERSION")),
+            tls_verify_disabled: false,
         }
     }
 
@@ -66,6 +71,13 @@ impl ClientConfig {
 
     pub fn with_addressing_style(mut self, s: AddressingStyle) -> Self {
         self.addressing_style = s;
+        self
+    }
+
+    /// Disable TLS certificate verification. Only use with trusted endpoints
+    /// behind a private CA — accepts any cert and disables MITM protection.
+    pub fn with_tls_verify_disabled(mut self, disabled: bool) -> Self {
+        self.tls_verify_disabled = disabled;
         self
     }
 }

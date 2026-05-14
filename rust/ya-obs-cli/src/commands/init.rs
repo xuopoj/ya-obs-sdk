@@ -21,6 +21,7 @@ const TEMPLATE: &str = r#"# ya-obs CLI config file
 # [profiles.nisco]
 # region = "cn-global-1"
 # endpoint = "https://obsv3.cloud.nisco.cn"
+# insecure = true  # only if the endpoint uses a private CA you trust
 "#;
 
 pub fn run(path: Option<&str>, force: bool, fallback_default: Option<PathBuf>) -> Result<()> {

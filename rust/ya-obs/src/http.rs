@@ -26,6 +26,7 @@ impl HttpClient {
             .user_agent(config.user_agent.clone())
             .connect_timeout(config.connect_timeout)
             .timeout(config.read_timeout)
+            .danger_accept_invalid_certs(config.tls_verify_disabled)
             .build()
             .map_err(Error::Transport)?;
         Ok(Self {

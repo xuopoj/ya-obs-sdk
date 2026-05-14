@@ -53,6 +53,12 @@ fn build_client(cli: &Cli) -> Result<Client> {
         },
     };
 
+    // --insecure on the CLI wins; otherwise fall back to the config file's value.
+    let insecure = cli.insecure || file.insecure.unwrap_or(false);
+    if insecure {
+        eprintln!("ya-obs: WARNING: TLS verification disabled");
+    }
+
     let mut cfg = match (&endpoint, &region) {
         (Some(ep), region_opt) => {
             let mut c = ClientConfig::for_endpoint(ep);
@@ -87,6 +93,7 @@ fn build_client(cli: &Cli) -> Result<Client> {
     cfg = cfg.with_credentials(creds);
     cfg = cfg.with_signing_version(signing_version);
     cfg = cfg.with_addressing_style(AddressingStyle::Auto);
+    cfg = cfg.with_tls_verify_disabled(insecure);
     Ok(Client::new(cfg)?)
 }
 

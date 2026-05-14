@@ -101,6 +101,8 @@ ya-obs --profile nisco ls obs://nisco-ai       # uses [profiles.nisco]
 
 **Precedence (highest first):** CLI flag → env var → config file. V4 signing always requires a region — endpoint alone is not enough. If the config file contains credentials and is group/world readable, the CLI prints a warning suggesting `chmod 600`.
 
+For private OBS clusters behind a self-signed or internal CA, pass `--insecure` to skip TLS certificate verification (or set `insecure = true` in the config). The CLI prints a warning to stderr whenever verification is disabled.
+
 ## Credentials
 
 Pass explicitly or set environment variables:

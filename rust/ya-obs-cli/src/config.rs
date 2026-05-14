@@ -12,6 +12,8 @@ pub struct Profile {
     pub secret_key: Option<String>,
     /// "v4" or "v2".
     pub signing_version: Option<String>,
+    /// When true, disable TLS certificate verification.
+    pub insecure: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

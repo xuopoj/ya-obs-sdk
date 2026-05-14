@@ -32,6 +32,10 @@ pub struct Cli {
     #[arg(long, value_enum)]
     pub signing_version: Option<SignVer>,
 
+    /// Disable TLS certificate verification. Use only with private CAs you trust.
+    #[arg(long)]
+    pub insecure: bool,
+
     #[command(subcommand)]
     pub cmd: Cmd,
 }

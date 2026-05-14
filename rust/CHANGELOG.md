@@ -9,6 +9,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `ya-obs init` subcommand scaffolds a starter config at
   `~/.config/ya-obs/config.toml` (or `--path`); refuses to overwrite without
   `--force`; sets file mode to 0600 on Unix.
+- `--insecure` CLI flag (and `insecure = true` config key) disables TLS
+  certificate verification for endpoints with private CAs. Prints a stderr
+  warning when active. Library: `ClientConfig::with_tls_verify_disabled(true)`.
 
 ## [0.1.1] - 2026-05-14
 
