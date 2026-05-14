@@ -3,6 +3,7 @@
 pub mod config;
 pub mod credentials;
 pub mod error;
+pub mod http;
 pub mod models;
 pub mod retry;
 pub mod signer;
