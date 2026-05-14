@@ -37,7 +37,7 @@ async fn main() -> Result<()> {
         Cmd::Rm { uri } => commands::rm::run(&client, uri).await?,
         Cmd::Cat { uri } => commands::cat::run(&client, uri).await?,
         Cmd::Presign { uri, expires } => commands::presign::run(&client, uri, *expires)?,
-        Cmd::Cp { .. } => return Err(anyhow!("cp not yet implemented (Task 21)")),
+        Cmd::Cp { src, dst } => commands::cp::run(&client, src, dst).await?,
     }
     Ok(())
 }
