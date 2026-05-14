@@ -4,9 +4,10 @@ A clean, minimal multi-language SDK for Huawei Cloud OBS.
 
 | Language | Package | Status |
 |----------|---------|--------|
-| Python | `ya-obs` (PyPI) | v0.2.1 |
+| Python | `ya-obs` (PyPI) | v0.2.2 |
 | TypeScript | `ya-obs` (npm) | planned |
-| Rust | `ya-obs` (crates.io) | planned |
+| Rust | `ya-obs` (crates.io) | v0.1.0 |
+| Rust CLI | `ya-obs-cli` (crates.io) | v0.1.0 |
 
 ## Python quickstart
 
@@ -37,6 +38,37 @@ print(url)
 # List objects
 for obj in client.list_objects("my-bucket"):
     print(obj.key, obj.size)
+```
+
+## Rust quickstart
+
+```bash
+cargo add ya-obs tokio bytes
+```
+
+```rust
+use bytes::Bytes;
+use ya_obs::{Client, ClientConfig, Credentials};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let cfg = ClientConfig::for_region("cn-north-4")
+        .with_credentials(Credentials::from_env()?);
+    let client = Client::new(cfg)?;
+    client.put_object("my-bucket", "hello.txt", Bytes::from_static(b"hi")).await?;
+    Ok(())
+}
+```
+
+## CLI
+
+```bash
+cargo install ya-obs-cli
+export HUAWEICLOUD_SDK_AK=...
+export HUAWEICLOUD_SDK_SK=...
+ya-obs --region cn-north-4 ls obs://my-bucket
+ya-obs --region cn-north-4 cp ./big.bin obs://my-bucket/big.bin
+ya-obs --region cn-north-4 presign obs://my-bucket/file.txt --expires 3600
 ```
 
 ## Credentials

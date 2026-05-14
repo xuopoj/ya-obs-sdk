@@ -1,0 +1,42 @@
+[workspace]
+resolver = "2"
+members = ["ya-obs", "ya-obs-cli"]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/xuopoj/ya-obs-sdk"
+authors = ["Sean <xuopoj@gmail.com>"]
+
+[workspace.dependencies]
+ya-obs = { path = "ya-obs", version = "0.1.0" }
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "http2"] }
+bytes = "1"
+futures = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+quick-xml = { version = "0.36", features = ["serialize"] }
+thiserror = "1"
+hmac = "0.12"
+sha2 = "0.10"
+sha1 = "0.10"
+base64 = "0.22"
+hex = "0.4"
+url = "2"
+percent-encoding = "2"
+time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
+uuid = { version = "1", features = ["v4"] }
+tracing = "0.1"
+
+[workspace.metadata.dist]
+cargo-dist-version = "0.22.1"
+ci = ["github"]
+installers = ["shell", "powershell"]
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+]
+pr-run-mode = "plan"
