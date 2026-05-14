@@ -14,3 +14,6 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `ya-obs-cli` binary crate (`ya-obs`): `ls`, `cp` (with progress bar),
   `rm`, `cat`, `presign` subcommands.
 - Cross-language conformance test suite validated against `test-vectors/`.
+- Conformance: 100% auth vectors (4 V4 + 4 V2), 100% xml vectors (4), 100%
+  error vectors (3). Multipart scenario test against wiremock validates the
+  initiate/part/complete sequence. Total: 39 tests passing across the workspace.
