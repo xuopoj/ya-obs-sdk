@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "name": "list_buckets_response",
+  "description": "Parse ListAllMyBucketsResult XML into a list of buckets",
+  "input": {
+    "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><ListAllMyBucketsResult xmlns=\"http://obs.myhwclouds.com/doc/2015-06-30/\"><Owner><ID>owner-abc</ID><DisplayName>example-user</DisplayName></Owner><Buckets><Bucket><Name>my-bucket</Name><CreationDate>2024-01-15T10:30:00.000Z</CreationDate><Location>cn-north-4</Location></Bucket><Bucket><Name>another-bucket</Name><CreationDate>2024-02-20T08:00:00.000Z</CreationDate></Bucket></Buckets></ListAllMyBucketsResult>"
+  },
+  "expected": {
+    "owner_id": "owner-abc",
+    "owner_display_name": "example-user",
+    "buckets": [
+      {"name": "my-bucket", "creation_date": "2024-01-15T10:30:00+00:00", "location": "cn-north-4"},
+      {"name": "another-bucket", "creation_date": "2024-02-20T08:00:00+00:00", "location": null}
+    ]
+  }
+}

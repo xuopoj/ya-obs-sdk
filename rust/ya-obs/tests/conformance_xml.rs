@@ -99,6 +99,21 @@ fn initiate_multipart_result_parses_to_expected_fields() {
 }
 
 #[test]
+fn list_buckets_response_parses_to_expected_buckets() {
+    let v = support::load_vector("xml", "list_buckets_response");
+    let xml = v["input"]["xml"].as_str().unwrap();
+
+    let buckets = parse_list_all_my_buckets(xml).expect("parse ok");
+
+    let expected = v["expected"]["buckets"].as_array().unwrap();
+    assert_eq!(buckets.len(), expected.len());
+    for (got, want) in buckets.iter().zip(expected) {
+        assert_eq!(got.name, want["name"].as_str().unwrap());
+        assert_eq!(got.creation_date, want["creation_date"].as_str().unwrap());
+    }
+}
+
+#[test]
 fn complete_multipart_request_serializes_to_expected_xml() {
     let v = support::load_vector("xml", "complete_multipart_request");
     let parts: Vec<(u32, String)> = v["input"]["parts"]

@@ -12,6 +12,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `--insecure` CLI flag (and `insecure = true` config key) disables TLS
   certificate verification for endpoints with private CAs. Prints a stderr
   warning when active. Library: `ClientConfig::with_tls_verify_disabled(true)`.
+- `Client::list_buckets()` — GET `/` returning `Vec<ListedBucket>`. CLI `ya-obs ls`
+  with no URI now lists all buckets in the account; `ya-obs ls obs://bucket`
+  continues to list objects. New XML test vector at
+  `test-vectors/xml/list_buckets_response.json`.
 
 ## [0.1.1] - 2026-05-14
 
