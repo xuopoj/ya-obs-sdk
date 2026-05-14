@@ -3,7 +3,7 @@ use bytes::Bytes;
 use crate::config::ClientConfig;
 use crate::error::Error;
 use crate::http::HttpClient;
-use crate::models::{GetObjectResponse, HeadObjectResponse, PutObjectResponse};
+use crate::models::{GetObjectResponse, HeadObjectResponse, ListedObject, PutObjectResponse};
 use crate::operations;
 
 pub struct Client {
@@ -43,5 +43,13 @@ impl Client {
 
     pub async fn delete_object(&self, bucket: &str, key: &str) -> Result<(), Error> {
         operations::delete_object::delete_object(&self.http, bucket, key).await
+    }
+
+    pub async fn list_objects(
+        &self,
+        bucket: &str,
+        prefix: Option<&str>,
+    ) -> Result<Vec<ListedObject>, Error> {
+        operations::list_objects::list_objects(&self.http, bucket, prefix).await
     }
 }
