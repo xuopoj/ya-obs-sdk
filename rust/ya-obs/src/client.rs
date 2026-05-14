@@ -52,4 +52,13 @@ impl Client {
     ) -> Result<Vec<ListedObject>, Error> {
         operations::list_objects::list_objects(&self.http, bucket, prefix).await
     }
+
+    pub fn presign_get_object(
+        &self,
+        bucket: &str,
+        key: &str,
+        expires: u64,
+    ) -> Result<String, Error> {
+        operations::presign::presign_get_object(&self.http.config, bucket, key, expires)
+    }
 }
