@@ -45,3 +45,11 @@ pub struct GetObjectResponse {
     pub etag: String,
     pub request_id: Option<String>,
 }
+
+#[derive(Debug, Clone)]
+pub struct HeadObjectResponse {
+    pub etag: String,
+    pub content_length: Option<u64>,
+    pub content_type: Option<String>,
+    pub request_id: Option<String>,
+}
