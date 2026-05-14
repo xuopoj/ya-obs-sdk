@@ -71,6 +71,28 @@ ya-obs --region cn-north-4 cp ./big.bin obs://my-bucket/big.bin
 ya-obs --region cn-north-4 presign obs://my-bucket/file.txt --expires 3600
 ```
 
+### CLI config file
+
+The CLI also reads `~/.config/ya-obs/config.toml` (or `$XDG_CONFIG_HOME/ya-obs/config.toml`):
+
+```toml
+[default]
+region = "cn-north-4"
+signing_version = "v4"
+
+[profiles.nisco]
+region = "cn-global-1"
+endpoint = "https://obsv3.cloud.nisco.cn"
+# access_key / secret_key are optional in the file; env vars are usually preferred
+```
+
+```bash
+ya-obs ls obs://my-bucket                      # uses [default]
+ya-obs --profile nisco ls obs://nisco-ai       # uses [profiles.nisco]
+```
+
+**Precedence (highest first):** CLI flag → env var → config file. V4 signing always requires a region — endpoint alone is not enough. If the config file contains credentials and is group/world readable, the CLI prints a warning suggesting `chmod 600`.
+
 ## Credentials
 
 Pass explicitly or set environment variables:

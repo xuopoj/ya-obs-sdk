@@ -3,6 +3,25 @@
 All notable changes to the `ya-obs` and `ya-obs-cli` crates.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- `ya-obs-cli` reads `$XDG_CONFIG_HOME/ya-obs/config.toml` (defaulting to
+  `~/.config/ya-obs/config.toml`) with `[default]` and `[profiles.<name>]`
+  sections. Select a profile via `--profile` / `$YA_OBS_PROFILE`. Precedence:
+  CLI flag > env var > config file. World/group-readable config files
+  containing credentials surface a permissions warning.
+
+### Changed
+- `ya-obs-cli` no longer silently drops `--region` when `--endpoint` is also
+  set; both are honored. Endpoint controls the URL host, region controls
+  V4 signing scope.
+- `--signing-version` defaults remain V4 but the flag is now optional so the
+  config file can supply the default.
+
+### Fixed
+- Clearer error when V4 signing is selected without a region.
+
 ## [0.1.0] - unreleased
 
 ### Added

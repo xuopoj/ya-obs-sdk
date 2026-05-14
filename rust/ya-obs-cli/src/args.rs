@@ -3,11 +3,20 @@ use clap::{Parser, Subcommand};
 #[derive(Debug, Parser)]
 #[command(name = "ya-obs", version, about = "Huawei Cloud OBS CLI")]
 pub struct Cli {
-    /// Region (e.g. cn-north-4). Overridden by --endpoint.
+    /// Named profile from the config file. Defaults to [default].
+    #[arg(long, env = "YA_OBS_PROFILE")]
+    pub profile: Option<String>,
+
+    /// Path to config file. Defaults to $XDG_CONFIG_HOME/ya-obs/config.toml
+    /// (typically ~/.config/ya-obs/config.toml).
+    #[arg(long, env = "YA_OBS_CONFIG")]
+    pub config: Option<String>,
+
+    /// Region (e.g. cn-north-4). Required for V4 signing even when --endpoint is set.
     #[arg(long, env = "YA_OBS_REGION")]
     pub region: Option<String>,
 
-    /// Custom endpoint URL (overrides --region).
+    /// Custom endpoint URL (overrides region-derived URL, but does not replace --region for signing).
     #[arg(long, env = "YA_OBS_ENDPOINT")]
     pub endpoint: Option<String>,
 
@@ -19,9 +28,9 @@ pub struct Cli {
     #[arg(long, env = "HUAWEICLOUD_SDK_SK", hide_env_values = true)]
     pub secret_key: Option<String>,
 
-    /// Signing version.
-    #[arg(long, value_enum, default_value_t = SignVer::V4)]
-    pub signing_version: SignVer,
+    /// Signing version: "v4" (default) or "v2".
+    #[arg(long, value_enum)]
+    pub signing_version: Option<SignVer>,
 
     #[command(subcommand)]
     pub cmd: Cmd,
