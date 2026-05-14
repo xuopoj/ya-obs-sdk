@@ -1,0 +1,131 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. ya-obs-cli-v0.1.0)"
+        required: true
+        type: string
+      draft:
+        description: "Create as draft release"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+            cross: true
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust -> target
+          key: ${{ matrix.target }}
+
+      - name: Install cross-compile toolchain (aarch64 linux)
+        if: matrix.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          mkdir -p ~/.cargo
+          cat >> ~/.cargo/config.toml <<'EOF'
+          [target.aarch64-unknown-linux-gnu]
+          linker = "aarch64-linux-gnu-gcc"
+          EOF
+
+      - name: Build
+        working-directory: rust
+        run: cargo build --release --target ${{ matrix.target }} -p ya-obs-cli
+
+      - name: Package (unix)
+        if: matrix.archive == 'tar.gz'
+        working-directory: rust/target/${{ matrix.target }}/release
+        run: |
+          tar -czf ya-obs-${{ matrix.target }}.tar.gz ya-obs
+          shasum -a 256 ya-obs-${{ matrix.target }}.tar.gz > ya-obs-${{ matrix.target }}.tar.gz.sha256
+
+      - name: Package (windows)
+        if: matrix.archive == 'zip'
+        working-directory: rust/target/${{ matrix.target }}/release
+        shell: pwsh
+        run: |
+          Compress-Archive -Path ya-obs.exe -DestinationPath ya-obs-${{ matrix.target }}.zip
+          (Get-FileHash ya-obs-${{ matrix.target }}.zip -Algorithm SHA256).Hash | Out-File ya-obs-${{ matrix.target }}.zip.sha256 -Encoding ASCII
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ya-obs-${{ matrix.target }}
+          path: |
+            rust/target/${{ matrix.target }}/release/ya-obs-${{ matrix.target }}.tar.gz
+            rust/target/${{ matrix.target }}/release/ya-obs-${{ matrix.target }}.tar.gz.sha256
+            rust/target/${{ matrix.target }}/release/ya-obs-${{ matrix.target }}.zip
+            rust/target/${{ matrix.target }}/release/ya-obs-${{ matrix.target }}.zip.sha256
+          if-no-files-found: ignore
+          retention-days: 7
+
+  release:
+    name: publish release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la dist/
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ inputs.tag }}"
+          DRAFT_FLAG=""
+          if [ "${{ inputs.draft }}" = "true" ]; then
+            DRAFT_FLAG="--draft"
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists, uploading assets"
+            gh release upload "$TAG" dist/* --clobber
+          else
+            echo "Creating release $TAG"
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --notes "Built from $(git rev-parse --short HEAD). See rust/CHANGELOG.md for details." \
+              $DRAFT_FLAG \
+              dist/*
+          fi

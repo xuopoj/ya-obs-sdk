@@ -29,6 +29,11 @@ time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
 uuid = { version = "1", features = ["v4"] }
 tracing = "0.1"
 
+[profile.release]
+strip = true
+lto = "thin"
+codegen-units = 1
+
 [workspace.metadata.dist]
 cargo-dist-version = "0.22.1"
 ci = ["github"]
