@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
@@ -6,14 +7,16 @@ use ya_obs::{AddressingStyle, Client, ClientConfig, Credentials, SigningVersion}
 use ya_obs_cli::args::{Cli, Cmd, SignVer};
 use ya_obs_cli::commands;
 use ya_obs_cli::config::{default_config_path, load, pick_first, Profile};
+use ya_obs_cli::errors::{classify, display, ConfigError};
 
 fn parse_signing_version(s: &str) -> Result<SigningVersion> {
     match s.to_ascii_lowercase().as_str() {
         "v4" => Ok(SigningVersion::V4),
         "v2" => Ok(SigningVersion::V2),
-        other => Err(anyhow!(
+        other => Err(ConfigError(format!(
             "invalid signing_version {other:?}; expected v4 or v2"
-        )),
+        ))
+        .into()),
     }
 }
 
@@ -67,7 +70,7 @@ fn build_client(cli: &Cli) -> Result<Client> {
         }
         (None, Some(r)) => ClientConfig::for_region(r),
         (None, None) => {
-            return Err(anyhow!(
+            return Err(ConfigError(format!(
                 "set --region or --endpoint (or env YA_OBS_REGION / YA_OBS_ENDPOINT, \
                  or a [default] section in {})",
                 config_path
@@ -75,15 +78,18 @@ fn build_client(cli: &Cli) -> Result<Client> {
                     .map(|p| p.display().to_string())
                     .unwrap_or_else(|| "~/.config/ya-obs/config.toml".into())
             ))
+            .into());
         }
     };
 
     if signing_version == SigningVersion::V4 && cfg.region.is_none() {
-        return Err(anyhow!(
+        return Err(ConfigError(
             "V4 signing requires --region (or YA_OBS_REGION, or `region = ...` in the \
              config file); endpoint alone is not enough. \
              Use --signing-version v2 if your cluster only supports legacy OBS signing."
-        ));
+                .to_string(),
+        )
+        .into());
     }
 
     let creds = match (access_key, secret_key) {
@@ -98,11 +104,21 @@ fn build_client(cli: &Cli) -> Result<Client> {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> ExitCode {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
+    match run().await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            display(&err);
+            ExitCode::from(classify(&err))
+        }
+    }
+}
+
+async fn run() -> Result<()> {
     let cli = Cli::parse();
 
     // `init` is special: it doesn't need credentials or a region, so it
