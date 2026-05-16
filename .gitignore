@@ -10,3 +10,4 @@ target/
 .worktrees/
 .DS_Store
 .env
+.env.test
