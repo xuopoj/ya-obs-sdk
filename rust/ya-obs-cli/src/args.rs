@@ -1,7 +1,39 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
-#[command(name = "ya-obs", version, about = "Huawei Cloud OBS CLI")]
+#[command(
+    name = "ya-obs",
+    version,
+    about = "Huawei Cloud OBS CLI",
+    long_about = "Huawei Cloud OBS CLI.\n\
+        \n\
+        EXIT CODES\n\
+        \n  \
+        0   success\n  \
+        1   generic / transport / unspecified\n  \
+        2   usage error (bad CLI args)\n  \
+        3   config error (missing creds/region, bad signing version)\n  \
+        4   not found (NoSuchKey, NoSuchBucket)\n  \
+        5   access denied (AccessDenied, 401, 403)\n  \
+        6   server error (5xx)\n\
+        \n\
+        IDEMPOTENCY & RETRIES\n\
+        \n  \
+        The library retries 408/429/5xx with exponential backoff. The CLI\n  \
+        itself does not retry beyond that. PUT and DELETE are safe to retry;\n  \
+        OBS DELETE on a missing key is idempotent (returns success).\n\
+        \n\
+        JSON OUTPUT\n\
+        \n  \
+        Pass -o json (global) for stable machine-readable output:\n  \
+          ls       NDJSON, one object per line\n  \
+          stat     single object {bucket,key,size,etag,content_type,...}\n  \
+          presign  {url}\n  \
+          cp       {ok,src,dst,bytes,multipart}\n  \
+          rm       {ok,bucket,key[,dry_run]}\n  \
+          cat      body on stdout; {ok,bucket,key,bytes} on stderr\n  \
+          errors   {error:{code,message,status}} on stderr"
+)]
 pub struct Cli {
     /// Named profile from the config file. Defaults to [default].
     #[arg(long, env = "YA_OBS_PROFILE")]
@@ -68,8 +100,22 @@ pub enum Cmd {
     /// List objects under an obs:// URI.
     Ls { uri: String },
     /// Copy between local and obs://.
+    #[command(long_about = "Copy between local paths and obs:// URIs.\n\
+        \n\
+        One side must be obs://. Use \"-\" for stdin (as src) or stdout\n\
+        (as dst). Stdin uploads buffer the whole body in memory before\n\
+        signing; for large pipes prefer staging to a file first.\n\
+        \n\
+        Multipart kicks in automatically above 100 MB for uploads.")]
     Cp { src: String, dst: String },
     /// Delete an object.
+    #[command(long_about = "Delete an object.\n\
+        \n\
+        OBS DELETE is idempotent: removing a missing key returns success\n\
+        (exit 0), not NoSuchKey. Use `stat` first if you need to confirm\n\
+        existence before deletion.\n\
+        \n\
+        Use --dry-run to preview without sending the DELETE.")]
     Rm {
         uri: String,
         /// Skip the DELETE request; print what would be deleted and exit 0.
@@ -79,6 +125,11 @@ pub enum Cmd {
     /// Print object body to stdout.
     Cat { uri: String },
     /// Fetch object metadata (HEAD). Exits 4 if the object doesn't exist.
+    #[command(long_about = "Fetch object metadata via a HEAD request.\n\
+        \n\
+        Prints size, etag, content_type, and request_id. Exits 4 if the\n\
+        object doesn't exist — agents can use this as a cheap existence\n\
+        check without listing a prefix.")]
     Stat { uri: String },
     /// Generate a presigned GET URL.
     Presign {
