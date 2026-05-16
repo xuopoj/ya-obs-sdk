@@ -4,7 +4,8 @@ use crate::config::ClientConfig;
 use crate::error::Error;
 use crate::http::HttpClient;
 use crate::models::{
-    GetObjectResponse, HeadObjectResponse, ListedBucket, ListedObject, PutObjectResponse,
+    GetObjectResponse, HeadObjectResponse, ListObjectsResult, ListedBucket, ListedObject,
+    PutObjectResponse,
 };
 use crate::operations;
 
@@ -45,6 +46,19 @@ impl Client {
         prefix: Option<&str>,
     ) -> Result<Vec<ListedObject>, Error> {
         operations::list_objects::list_objects(&self.http, bucket, prefix).await
+    }
+
+    /// List with a delimiter. With `delimiter=Some("/")`, only objects at the
+    /// current "directory" level are returned, plus a list of subdirectories
+    /// via `ListObjectsResult.common_prefixes`.
+    pub async fn list_objects_delimited(
+        &self,
+        bucket: &str,
+        prefix: Option<&str>,
+        delimiter: Option<&str>,
+    ) -> Result<ListObjectsResult, Error> {
+        operations::list_objects::list_objects_delimited(&self.http, bucket, prefix, delimiter)
+            .await
     }
 
     pub async fn list_buckets(&self) -> Result<Vec<ListedBucket>, Error> {

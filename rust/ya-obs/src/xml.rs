@@ -18,6 +18,12 @@ struct RawContents {
 }
 
 #[derive(Debug, Deserialize)]
+struct RawCommonPrefix {
+    #[serde(rename = "Prefix")]
+    prefix: String,
+}
+
+#[derive(Debug, Deserialize)]
 struct RawListBucketResult {
     #[serde(rename = "Name")]
     name: String,
@@ -31,6 +37,8 @@ struct RawListBucketResult {
     next_marker: Option<String>,
     #[serde(rename = "Contents", default)]
     contents: Vec<RawContents>,
+    #[serde(rename = "CommonPrefixes", default)]
+    common_prefixes: Vec<RawCommonPrefix>,
 }
 
 /// Normalize OBS `LastModified` (`2024-01-15T10:30:00.000Z`) into the
@@ -99,6 +107,11 @@ pub fn parse_list_bucket_result(xml: &str) -> Result<ListBucketResult, quick_xml
         is_truncated: raw.is_truncated,
         next_marker: raw.next_marker.filter(|s| !s.is_empty()),
         objects,
+        common_prefixes: raw
+            .common_prefixes
+            .into_iter()
+            .map(|cp| cp.prefix)
+            .collect(),
     })
 }
 

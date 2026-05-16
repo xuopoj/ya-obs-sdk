@@ -101,11 +101,22 @@ pub enum Cmd {
     #[command(long_about = "List buckets when invoked with no URI; list \
         objects under a prefix when given obs://bucket/[prefix].\n\
         \n\
+        By default `ls` is delimited — like `aws s3 ls`, only entries at the\n\
+        current level are shown, with sub-prefixes marked `PRE foo/`. Use\n\
+        `-r` to flatten and recurse into every object under the prefix.\n\
+        \n\
         Examples:\n  \
-          ya-obs ls                            # list all buckets\n  \
-          ya-obs ls obs://bucket               # list every object in bucket\n  \
-          ya-obs ls obs://bucket/prefix/       # list objects under prefix")]
-    Ls { uri: Option<String> },
+          ya-obs ls                                # list all buckets\n  \
+          ya-obs ls obs://bucket                   # top-level entries in bucket\n  \
+          ya-obs ls obs://bucket/foo/              # entries under foo/\n  \
+          ya-obs ls -r obs://bucket                # every object, recursive")]
+    Ls {
+        uri: Option<String>,
+        /// Recurse into every object (no delimiter). Equivalent to listing
+        /// without `delimiter=/`.
+        #[arg(long, short = 'r')]
+        recursive: bool,
+    },
     /// Copy between local and obs://.
     #[command(long_about = "Copy between local paths and obs:// URIs.\n\
         \n\

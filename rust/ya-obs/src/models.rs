@@ -6,6 +6,15 @@ pub struct ListBucketResult {
     pub is_truncated: bool,
     pub next_marker: Option<String>,
     pub objects: Vec<ListedObject>,
+    /// Common prefixes returned when a delimiter is in effect (e.g. ["foo/", "bar/"]).
+    pub common_prefixes: Vec<String>,
+}
+
+/// Combined result of a delimited list_objects call across all pages.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ListObjectsResult {
+    pub objects: Vec<ListedObject>,
+    pub common_prefixes: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
