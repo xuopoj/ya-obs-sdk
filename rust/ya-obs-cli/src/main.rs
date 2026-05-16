@@ -137,6 +137,7 @@ async fn run(cli: Cli) -> Result<()> {
         Cmd::Ls { uri } => commands::ls::run(&client, uri, out).await?,
         Cmd::Rm { uri } => commands::rm::run(&client, uri, out).await?,
         Cmd::Cat { uri } => commands::cat::run(&client, uri, out).await?,
+        Cmd::Stat { uri } => commands::stat::run(&client, uri, out).await?,
         Cmd::Presign { uri, expires } => commands::presign::run(&client, uri, *expires, out)?,
         Cmd::Cp { src, dst } => commands::cp::run(&client, src, dst, out).await?,
         Cmd::Init { .. } => unreachable!("handled above"),

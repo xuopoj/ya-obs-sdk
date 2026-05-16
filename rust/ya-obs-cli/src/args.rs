@@ -68,6 +68,8 @@ pub enum Cmd {
     Rm { uri: String },
     /// Print object body to stdout.
     Cat { uri: String },
+    /// Fetch object metadata (HEAD). Exits 4 if the object doesn't exist.
+    Stat { uri: String },
     /// Generate a presigned GET URL.
     Presign {
         uri: String,
