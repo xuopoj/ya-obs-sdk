@@ -129,10 +129,13 @@ async fn main() -> ExitCode {
 }
 
 async fn run(cli: Cli) -> Result<()> {
-    // `init` is special: it doesn't need credentials or a region, so it
-    // bypasses the normal client-build path.
+    // `init` and `completion` are special: they don't need credentials or a
+    // region, so they bypass the normal client-build path.
     if let Cmd::Init { path, force } = &cli.cmd {
         return commands::init::run(path.as_deref(), *force, default_config_path());
+    }
+    if let Cmd::Completion { shell } = &cli.cmd {
+        return commands::completion::print_script(*shell);
     }
 
     let client = build_client(&cli)?;
@@ -148,7 +151,8 @@ async fn run(cli: Cli) -> Result<()> {
         Cmd::Stat { uri } => commands::stat::run(&client, uri, out).await?,
         Cmd::Presign { uri, expires } => commands::presign::run(&client, uri, *expires, out)?,
         Cmd::Cp { src, dst } => commands::cp::run(&client, src, dst, out, quiet).await?,
-        Cmd::Init { .. } => unreachable!("handled above"),
+        Cmd::CompleteObs { input } => commands::completion::complete_obs(&client, input).await?,
+        Cmd::Init { .. } | Cmd::Completion { .. } => unreachable!("handled above"),
     }
     Ok(())
 }

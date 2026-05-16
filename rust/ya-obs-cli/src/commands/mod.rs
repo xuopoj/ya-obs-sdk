@@ -1,4 +1,5 @@
 pub mod cat;
+pub mod completion;
 pub mod cp;
 pub mod init;
 pub mod ls;

@@ -165,4 +165,25 @@ pub enum Cmd {
         #[arg(long)]
         force: bool,
     },
+    /// Print a shell completion script (bash | zsh).
+    #[command(long_about = "Print a tab-completion script for the given shell. \
+        Static (subcommands, flags, enum values) plus dynamic obs:// path \
+        completion that consults the live cluster.\n\
+        \n\
+        Install for bash:\n  \
+          ya-obs completion bash > ~/.local/share/bash-completion/completions/ya-obs\n\
+        \n\
+        Install for zsh (ensure the dir is in your fpath):\n  \
+          ya-obs completion zsh > ~/.zfunc/_ya-obs")]
+    Completion { shell: CompletionShell },
+    /// Internal helper used by completion scripts to expand obs:// paths.
+    /// Reads one partial URI, writes one candidate per line on stdout.
+    #[command(name = "__complete-obs", hide = true)]
+    CompleteObs { input: String },
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub enum CompletionShell {
+    Bash,
+    Zsh,
 }
