@@ -11,3 +11,9 @@ pub fn bytes_bar(total: u64) -> ProgressBar {
     );
     bar
 }
+
+/// A bar that writes nothing — used in --quiet mode so the rest of cp can
+/// keep calling set_message/inc/finish_with_message uniformly.
+pub fn hidden_bar() -> ProgressBar {
+    ProgressBar::hidden()
+}

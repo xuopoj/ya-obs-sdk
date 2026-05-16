@@ -7,7 +7,7 @@ use ya_obs::Client;
 
 use crate::args::OutputFormat;
 use crate::obs_uri::ObsUri;
-use crate::progress::bytes_bar;
+use crate::progress::{bytes_bar, hidden_bar};
 
 const MULTIPART_THRESHOLD: usize = 100 * 1024 * 1024;
 
@@ -24,15 +24,21 @@ fn classify(s: &str) -> Endpoint {
     }
 }
 
-pub async fn run(client: &Client, src: &str, dst: &str, output: OutputFormat) -> Result<()> {
+pub async fn run(
+    client: &Client,
+    src: &str,
+    dst: &str,
+    output: OutputFormat,
+    quiet: bool,
+) -> Result<()> {
     match (classify(src), classify(dst)) {
         (Endpoint::Local(path), Endpoint::Remote(u)) => {
-            let bytes_written = upload(client, &path, &u).await?;
+            let bytes_written = upload(client, &path, &u, quiet).await?;
             emit_summary(output, src, dst, bytes_written, bytes_written >= MULTIPART_THRESHOLD);
             Ok(())
         }
         (Endpoint::Remote(u), Endpoint::Local(path)) => {
-            let bytes_written = download(client, &u, &path).await?;
+            let bytes_written = download(client, &u, &path, quiet).await?;
             emit_summary(output, src, dst, bytes_written, false);
             Ok(())
         }
@@ -58,12 +64,12 @@ fn emit_summary(output: OutputFormat, src: &str, dst: &str, bytes: usize, multip
     }
 }
 
-async fn upload(client: &Client, path: &str, dst: &ObsUri) -> Result<usize> {
+async fn upload(client: &Client, path: &str, dst: &ObsUri, quiet: bool) -> Result<usize> {
     let mut file = File::open(path).await?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf).await?;
 
-    let bar = bytes_bar(buf.len() as u64);
+    let bar = if quiet { hidden_bar() } else { bytes_bar(buf.len() as u64) };
     bar.set_message(format!(
         "uploading {} -> obs://{}/{}",
         path, dst.bucket, dst.key
@@ -77,10 +83,10 @@ async fn upload(client: &Client, path: &str, dst: &ObsUri) -> Result<usize> {
     Ok(len)
 }
 
-async fn download(client: &Client, src: &ObsUri, path: &str) -> Result<usize> {
+async fn download(client: &Client, src: &ObsUri, path: &str, quiet: bool) -> Result<usize> {
     let resp = client.get_object(&src.bucket, &src.key).await?;
     let total = resp.content_length.unwrap_or(0);
-    let bar = bytes_bar(total);
+    let bar = if quiet { hidden_bar() } else { bytes_bar(total) };
     bar.set_message(format!(
         "downloading obs://{}/{} -> {}",
         src.bucket, src.key, path

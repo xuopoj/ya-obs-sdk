@@ -59,7 +59,12 @@ fn build_client(cli: &Cli) -> Result<Client> {
     // --insecure on the CLI wins; otherwise fall back to the config file's value.
     let insecure = cli.insecure || file.insecure.unwrap_or(false);
     if insecure {
-        eprintln!("ya-obs: WARNING: TLS verification disabled");
+        // Always emit via tracing so RUST_LOG=warn can surface it; only print
+        // the human-readable line when not in quiet mode.
+        tracing::warn!("TLS verification disabled");
+        if !cli.quiet {
+            eprintln!("ya-obs: WARNING: TLS verification disabled");
+        }
     }
 
     let mut cfg = match (&endpoint, &region) {
@@ -132,6 +137,7 @@ async fn run(cli: Cli) -> Result<()> {
 
     let client = build_client(&cli)?;
     let out = cli.output;
+    let quiet = cli.quiet;
 
     match &cli.cmd {
         Cmd::Ls { uri } => commands::ls::run(&client, uri, out).await?,
@@ -139,7 +145,7 @@ async fn run(cli: Cli) -> Result<()> {
         Cmd::Cat { uri } => commands::cat::run(&client, uri, out).await?,
         Cmd::Stat { uri } => commands::stat::run(&client, uri, out).await?,
         Cmd::Presign { uri, expires } => commands::presign::run(&client, uri, *expires, out)?,
-        Cmd::Cp { src, dst } => commands::cp::run(&client, src, dst, out).await?,
+        Cmd::Cp { src, dst } => commands::cp::run(&client, src, dst, out, quiet).await?,
         Cmd::Init { .. } => unreachable!("handled above"),
     }
     Ok(())

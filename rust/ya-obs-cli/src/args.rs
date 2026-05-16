@@ -42,6 +42,11 @@ pub struct Cli {
     #[arg(long, short = 'o', value_enum, default_value_t = OutputFormat::Text, global = true)]
     pub output: OutputFormat,
 
+    /// Suppress informational stderr (TLS-disabled warning, progress bars).
+    /// Errors still print. Set `RUST_LOG=warn` to surface suppressed warnings.
+    #[arg(long, short = 'q', global = true)]
+    pub quiet: bool,
+
     #[command(subcommand)]
     pub cmd: Cmd,
 }
