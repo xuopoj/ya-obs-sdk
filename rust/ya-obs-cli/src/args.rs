@@ -36,6 +36,12 @@ pub struct Cli {
     #[arg(long)]
     pub insecure: bool,
 
+    /// Output format. `text` (default) is human-readable; `json` emits a
+    /// stable machine-readable shape per subcommand (NDJSON for `ls`,
+    /// single objects for the others).
+    #[arg(long, short = 'o', value_enum, default_value_t = OutputFormat::Text, global = true)]
+    pub output: OutputFormat,
+
     #[command(subcommand)]
     pub cmd: Cmd,
 }
@@ -44,6 +50,12 @@ pub struct Cli {
 pub enum SignVer {
     V4,
     V2,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum OutputFormat {
+    Text,
+    Json,
 }
 
 #[derive(Debug, Subcommand)]

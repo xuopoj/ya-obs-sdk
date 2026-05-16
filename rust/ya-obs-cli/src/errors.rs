@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::args::OutputFormat;
+
 /// Wrapper for user-facing config problems (missing region/creds, bad
 /// signing_version string, etc). Surfaces as exit code 3 at the main boundary.
 #[derive(Debug, Error)]
@@ -40,10 +42,34 @@ fn classify_obs(e: &ya_obs::Error) -> u8 {
 }
 
 /// Render an error to a single line on stderr. No anyhow "Caused by:" chain.
-pub fn display(err: &anyhow::Error) {
-    if let Some(obs) = err.downcast_ref::<ya_obs::Error>() {
-        eprintln!("error: {obs}");
-    } else {
-        eprintln!("error: {err}");
+///
+/// In JSON mode, prints a single-line JSON object on stderr with a stable
+/// `error` field: `{"error":{"code":"...","message":"...","status":...}}`.
+pub fn display(err: &anyhow::Error, output: OutputFormat) {
+    match output {
+        OutputFormat::Text => {
+            if let Some(obs) = err.downcast_ref::<ya_obs::Error>() {
+                eprintln!("error: {obs}");
+            } else {
+                eprintln!("error: {err}");
+            }
+        }
+        OutputFormat::Json => {
+            let (code, message, status) = if let Some(obs) = err.downcast_ref::<ya_obs::Error>() {
+                (obs.code().to_string(), obs.message().to_string(), obs.status())
+            } else if err.downcast_ref::<ConfigError>().is_some() {
+                ("Config".to_string(), err.to_string(), 0)
+            } else {
+                ("Error".to_string(), err.to_string(), 0)
+            };
+            let line = serde_json::json!({
+                "error": {
+                    "code": code,
+                    "message": message,
+                    "status": status,
+                }
+            });
+            eprintln!("{line}");
+        }
     }
 }

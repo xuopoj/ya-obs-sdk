@@ -109,18 +109,21 @@ async fn main() -> ExitCode {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
-    match run().await {
+    // Parse early so we can pick the error output format. If parsing itself
+    // fails clap calls process::exit(2) before we get here, which is fine.
+    let cli = Cli::parse();
+    let output = cli.output;
+
+    match run(cli).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
-            display(&err);
+            display(&err, output);
             ExitCode::from(classify(&err))
         }
     }
 }
 
-async fn run() -> Result<()> {
-    let cli = Cli::parse();
-
+async fn run(cli: Cli) -> Result<()> {
     // `init` is special: it doesn't need credentials or a region, so it
     // bypasses the normal client-build path.
     if let Cmd::Init { path, force } = &cli.cmd {
@@ -128,13 +131,14 @@ async fn run() -> Result<()> {
     }
 
     let client = build_client(&cli)?;
+    let out = cli.output;
 
     match &cli.cmd {
-        Cmd::Ls { uri } => commands::ls::run(&client, uri).await?,
-        Cmd::Rm { uri } => commands::rm::run(&client, uri).await?,
-        Cmd::Cat { uri } => commands::cat::run(&client, uri).await?,
-        Cmd::Presign { uri, expires } => commands::presign::run(&client, uri, *expires)?,
-        Cmd::Cp { src, dst } => commands::cp::run(&client, src, dst).await?,
+        Cmd::Ls { uri } => commands::ls::run(&client, uri, out).await?,
+        Cmd::Rm { uri } => commands::rm::run(&client, uri, out).await?,
+        Cmd::Cat { uri } => commands::cat::run(&client, uri, out).await?,
+        Cmd::Presign { uri, expires } => commands::presign::run(&client, uri, *expires, out)?,
+        Cmd::Cp { src, dst } => commands::cp::run(&client, src, dst, out).await?,
         Cmd::Init { .. } => unreachable!("handled above"),
     }
     Ok(())
