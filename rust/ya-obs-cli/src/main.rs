@@ -150,7 +150,9 @@ async fn run(cli: Cli) -> Result<()> {
         Cmd::Cat { uri } => commands::cat::run(&client, uri, out).await?,
         Cmd::Stat { uri } => commands::stat::run(&client, uri, out).await?,
         Cmd::Presign { uri, expires } => commands::presign::run(&client, uri, *expires, out)?,
-        Cmd::Cp { src, dst } => commands::cp::run(&client, src, dst, out, quiet).await?,
+        Cmd::Cp { src, dst, recursive } => {
+            commands::cp::run(&client, src, dst, *recursive, out, quiet).await?
+        }
         Cmd::CompleteObs { input } => commands::completion::complete_obs(&client, input).await?,
         Cmd::Init { .. } | Cmd::Completion { .. } => unreachable!("handled above"),
     }

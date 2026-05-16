@@ -124,8 +124,21 @@ pub enum Cmd {
         (as dst). Stdin uploads buffer the whole body in memory before\n\
         signing; for large pipes prefer staging to a file first.\n\
         \n\
-        Multipart kicks in automatically above 100 MB for uploads.")]
-    Cp { src: String, dst: String },
+        Multipart kicks in automatically above 100 MB for uploads.\n\
+        \n\
+        With -r/--recursive, copy a directory tree:\n  \
+          cp -r ./dir obs://bucket/pre/      uploads each file under ./dir\n  \
+          cp -r obs://bucket/pre/ ./dir      downloads every object under pre/\n\
+        \n\
+        Contents are copied (not the source directory itself); existing\n\
+        destination files are overwritten. Errors abort the whole copy.")]
+    Cp {
+        src: String,
+        dst: String,
+        /// Recursively copy a directory tree (local↔obs only).
+        #[arg(long, short = 'r')]
+        recursive: bool,
+    },
     /// Delete an object.
     #[command(long_about = "Delete an object.\n\
         \n\
