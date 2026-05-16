@@ -14,9 +14,11 @@ const MULTIPART_THRESHOLD: usize = 100 * 1024 * 1024;
 enum Endpoint {
     Local(String),
     Remote(ObsUri),
+    Stdin,
+    Stdout,
 }
 
-fn classify(s: &str) -> Endpoint {
+fn classify_remote_or_local(s: &str) -> Endpoint {
     if let Ok(u) = s.parse::<ObsUri>() {
         Endpoint::Remote(u)
     } else {
@@ -31,23 +33,45 @@ pub async fn run(
     output: OutputFormat,
     quiet: bool,
 ) -> Result<()> {
-    match (classify(src), classify(dst)) {
+    // `-` means stdin when used as src, stdout when used as dst.
+    let src_ep = if src == "-" {
+        Endpoint::Stdin
+    } else {
+        classify_remote_or_local(src)
+    };
+    let dst_ep = if dst == "-" {
+        Endpoint::Stdout
+    } else {
+        classify_remote_or_local(dst)
+    };
+
+    match (src_ep, dst_ep) {
         (Endpoint::Local(path), Endpoint::Remote(u)) => {
-            let bytes_written = upload(client, &path, &u, quiet).await?;
-            emit_summary(output, src, dst, bytes_written, bytes_written >= MULTIPART_THRESHOLD);
+            let n = upload_file(client, &path, &u, quiet).await?;
+            emit_summary(output, src, dst, n, n >= MULTIPART_THRESHOLD);
+            Ok(())
+        }
+        (Endpoint::Stdin, Endpoint::Remote(u)) => {
+            let n = upload_stdin(client, &u).await?;
+            emit_summary(output, src, dst, n, n >= MULTIPART_THRESHOLD);
             Ok(())
         }
         (Endpoint::Remote(u), Endpoint::Local(path)) => {
-            let bytes_written = download(client, &u, &path, quiet).await?;
-            emit_summary(output, src, dst, bytes_written, false);
+            let n = download_file(client, &u, &path, quiet).await?;
+            emit_summary(output, src, dst, n, false);
             Ok(())
         }
-        (Endpoint::Local(_), Endpoint::Local(_)) => {
-            Err(anyhow!("at least one side of cp must be obs://"))
+        (Endpoint::Remote(u), Endpoint::Stdout) => {
+            let n = download_stdout(client, &u).await?;
+            emit_summary(output, src, dst, n, false);
+            Ok(())
         }
         (Endpoint::Remote(_), Endpoint::Remote(_)) => {
             Err(anyhow!("server-side copy not yet implemented"))
         }
+        // Any other combination (local-only, stdin-to-local, etc.) is invalid:
+        // cp requires exactly one obs:// side.
+        _ => Err(anyhow!("cp requires exactly one obs:// side (use `-` for stdin/stdout)")),
     }
 }
 
@@ -64,7 +88,7 @@ fn emit_summary(output: OutputFormat, src: &str, dst: &str, bytes: usize, multip
     }
 }
 
-async fn upload(client: &Client, path: &str, dst: &ObsUri, quiet: bool) -> Result<usize> {
+async fn upload_file(client: &Client, path: &str, dst: &ObsUri, quiet: bool) -> Result<usize> {
     let mut file = File::open(path).await?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf).await?;
@@ -83,7 +107,7 @@ async fn upload(client: &Client, path: &str, dst: &ObsUri, quiet: bool) -> Resul
     Ok(len)
 }
 
-async fn download(client: &Client, src: &ObsUri, path: &str, quiet: bool) -> Result<usize> {
+async fn download_file(client: &Client, src: &ObsUri, path: &str, quiet: bool) -> Result<usize> {
     let resp = client.get_object(&src.bucket, &src.key).await?;
     let total = resp.content_length.unwrap_or(0);
     let bar = if quiet { hidden_bar() } else { bytes_bar(total) };
@@ -103,5 +127,34 @@ async fn download(client: &Client, src: &ObsUri, path: &str, quiet: bool) -> Res
     }
     out.flush().await?;
     bar.finish_with_message("done");
+    Ok(written)
+}
+
+/// Read all of stdin, then PUT. The body is buffered because the OBS PUT
+/// path signs the body hash upfront; true streaming would need multipart
+/// support in the library. Mind the memory cost for very large pipes.
+async fn upload_stdin(client: &Client, dst: &ObsUri) -> Result<usize> {
+    let mut buf = Vec::new();
+    tokio::io::stdin().read_to_end(&mut buf).await?;
+    let len = buf.len();
+    client
+        .put_object(&dst.bucket, &dst.key, Bytes::from(buf))
+        .await?;
+    Ok(len)
+}
+
+/// Stream the object body to stdout. No progress bar — stdout is the data
+/// channel, and writing one to a terminal would interleave with the bytes.
+async fn download_stdout(client: &Client, src: &ObsUri) -> Result<usize> {
+    let resp = client.get_object(&src.bucket, &src.key).await?;
+    let mut out = tokio::io::stdout();
+    let mut stream = Box::pin(resp.body.into_stream());
+    let mut written = 0usize;
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        out.write_all(&chunk).await?;
+        written += chunk.len();
+    }
+    out.flush().await?;
     Ok(written)
 }
