@@ -48,13 +48,17 @@ fn canonical_uri(url: &Url) -> String {
         .join("/")
 }
 
+// SigV4 query encoding: same as PATH_ENCODE_SET but `/` is also encoded
+// (path encoding preserves `/` as the path separator; query values must encode it).
+const QUERY_ENCODE_SET: &AsciiSet = &PATH_ENCODE_SET.add(b'/');
+
 fn canonical_query(url: &Url) -> String {
     let mut pairs: Vec<(String, String)> = url
         .query_pairs()
         .map(|(k, v)| {
             (
-                utf8_percent_encode(&k, PATH_ENCODE_SET).to_string(),
-                utf8_percent_encode(&v, PATH_ENCODE_SET).to_string(),
+                utf8_percent_encode(&k, QUERY_ENCODE_SET).to_string(),
+                utf8_percent_encode(&v, QUERY_ENCODE_SET).to_string(),
             )
         })
         .collect();
