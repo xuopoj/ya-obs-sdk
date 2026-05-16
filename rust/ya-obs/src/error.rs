@@ -102,9 +102,31 @@ impl Error {
 pub fn classify_error(status: u16, xml: &str) -> Error {
     let parsed = match parse_error_response(xml) {
         Ok(p) => p,
-        Err(e) => return Error::Xml(e),
+        Err(e) => {
+            // HEAD responses (and some misconfigured endpoints) return error
+            // status codes with empty bodies. Synthesize a sensible variant
+            // from the status code instead of surfacing an XML parse error.
+            if xml.trim().is_empty() {
+                let (code, message) = match status {
+                    404 => ("NoSuchKey", "object not found (empty body)"),
+                    403 => ("AccessDenied", "access denied (empty body)"),
+                    _ => ("HttpError", "error response with empty body"),
+                };
+                let synth = crate::models::ErrorResponse {
+                    code: code.to_string(),
+                    message: message.to_string(),
+                    request_id: String::new(),
+                    host_id: String::new(),
+                };
+                return classify_parsed(status, synth);
+            }
+            return Error::Xml(e);
+        }
     };
+    classify_parsed(status, parsed)
+}
 
+fn classify_parsed(status: u16, parsed: crate::models::ErrorResponse) -> Error {
     match (parsed.code.as_str(), status) {
         ("NoSuchKey", _) => Error::NoSuchKey {
             code: parsed.code,
