@@ -70,7 +70,12 @@ pub enum Cmd {
     /// Copy between local and obs://.
     Cp { src: String, dst: String },
     /// Delete an object.
-    Rm { uri: String },
+    Rm {
+        uri: String,
+        /// Skip the DELETE request; print what would be deleted and exit 0.
+        #[arg(long)]
+        dry_run: bool,
+    },
     /// Print object body to stdout.
     Cat { uri: String },
     /// Fetch object metadata (HEAD). Exits 4 if the object doesn't exist.

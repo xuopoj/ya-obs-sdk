@@ -141,7 +141,7 @@ async fn run(cli: Cli) -> Result<()> {
 
     match &cli.cmd {
         Cmd::Ls { uri } => commands::ls::run(&client, uri, out).await?,
-        Cmd::Rm { uri } => commands::rm::run(&client, uri, out).await?,
+        Cmd::Rm { uri, dry_run } => commands::rm::run(&client, uri, out, *dry_run).await?,
         Cmd::Cat { uri } => commands::cat::run(&client, uri, out).await?,
         Cmd::Stat { uri } => commands::stat::run(&client, uri, out).await?,
         Cmd::Presign { uri, expires } => commands::presign::run(&client, uri, *expires, out)?,
