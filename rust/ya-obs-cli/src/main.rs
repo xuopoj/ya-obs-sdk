@@ -140,7 +140,7 @@ async fn run(cli: Cli) -> Result<()> {
     let quiet = cli.quiet;
 
     match &cli.cmd {
-        Cmd::Ls { uri } => commands::ls::run(&client, uri, out).await?,
+        Cmd::Ls { uri } => commands::ls::run(&client, uri.as_deref(), out).await?,
         Cmd::Rm { uri, dry_run } => commands::rm::run(&client, uri, out, *dry_run).await?,
         Cmd::Cat { uri } => commands::cat::run(&client, uri, out).await?,
         Cmd::Stat { uri } => commands::stat::run(&client, uri, out).await?,

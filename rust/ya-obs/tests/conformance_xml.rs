@@ -28,8 +28,47 @@ fn list_objects_response_parses_to_expected_objects() {
 }
 
 use ya_obs::xml::{
-    parse_error_response, parse_initiate_multipart_result, serialize_complete_multipart,
+    parse_error_response, parse_initiate_multipart_result, parse_list_all_my_buckets,
+    serialize_complete_multipart,
 };
+
+#[test]
+fn list_all_my_buckets_parses_to_expected_buckets() {
+    let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<ListAllMyBucketsResult>
+  <Owner>
+    <ID>1234</ID>
+    <DisplayName>tester</DisplayName>
+  </Owner>
+  <Buckets>
+    <Bucket>
+      <Name>alpha</Name>
+      <CreationDate>2026-01-15T10:30:00.000Z</CreationDate>
+    </Bucket>
+    <Bucket>
+      <Name>beta</Name>
+      <CreationDate>2026-03-01T08:00:00.000Z</CreationDate>
+    </Bucket>
+  </Buckets>
+</ListAllMyBucketsResult>"#;
+    let buckets = parse_list_all_my_buckets(xml).expect("parse ok");
+    assert_eq!(buckets.len(), 2);
+    assert_eq!(buckets[0].name, "alpha");
+    assert_eq!(buckets[0].creation_date, "2026-01-15T10:30:00+00:00");
+    assert_eq!(buckets[1].name, "beta");
+    assert_eq!(buckets[1].creation_date, "2026-03-01T08:00:00+00:00");
+}
+
+#[test]
+fn list_all_my_buckets_handles_empty_account() {
+    let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<ListAllMyBucketsResult>
+  <Owner><ID>x</ID><DisplayName>x</DisplayName></Owner>
+  <Buckets/>
+</ListAllMyBucketsResult>"#;
+    let buckets = parse_list_all_my_buckets(xml).expect("parse ok");
+    assert!(buckets.is_empty());
+}
 
 #[test]
 fn error_response_parses_to_expected_fields() {

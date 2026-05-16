@@ -58,6 +58,15 @@ fn base_origin(cfg: &ClientConfig) -> Result<(String, String), Error> {
     }
 }
 
+/// Service-level URL with no bucket — used for ListBuckets and similar
+/// service endpoint calls. Always path-style; addressing_style is irrelevant
+/// because there's no bucket to put in the hostname.
+pub fn build_service_url(cfg: &ClientConfig) -> Result<Url, Error> {
+    let (scheme, host) = base_origin(cfg)?;
+    let url_str = format!("{scheme}://{host}/");
+    Url::parse(&url_str).map_err(|e| Error::Config(format!("built invalid url: {e}")))
+}
+
 pub fn build_object_url(cfg: &ClientConfig, bucket: &str, key: &str) -> Result<Url, Error> {
     let (scheme, host) = base_origin(cfg)?;
     let style = match cfg.addressing_style {

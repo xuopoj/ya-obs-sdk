@@ -1,7 +1,9 @@
 use quick_xml::de::from_str;
 use serde::Deserialize;
 
-use crate::models::{ErrorResponse, InitiateMultipartResult, ListBucketResult, ListedObject};
+use crate::models::{
+    ErrorResponse, InitiateMultipartResult, ListBucketResult, ListedBucket, ListedObject,
+};
 
 #[derive(Debug, Deserialize)]
 struct RawContents {
@@ -40,6 +42,40 @@ fn normalize_last_modified(raw: &str) -> String {
     } else {
         no_frac.to_string()
     }
+}
+
+#[derive(Debug, Deserialize)]
+struct RawBucketEntry {
+    #[serde(rename = "Name")]
+    name: String,
+    #[serde(rename = "CreationDate")]
+    creation_date: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawBuckets {
+    #[serde(rename = "Bucket", default)]
+    bucket: Vec<RawBucketEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawListAllMyBucketsResult {
+    #[serde(rename = "Buckets", default)]
+    buckets: Option<RawBuckets>,
+}
+
+pub fn parse_list_all_my_buckets(xml: &str) -> Result<Vec<ListedBucket>, quick_xml::DeError> {
+    let raw: RawListAllMyBucketsResult = from_str(xml)?;
+    Ok(raw
+        .buckets
+        .map(|b| b.bucket)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|b| ListedBucket {
+            name: b.name,
+            creation_date: normalize_last_modified(&b.creation_date),
+        })
+        .collect())
 }
 
 pub fn parse_list_bucket_result(xml: &str) -> Result<ListBucketResult, quick_xml::DeError> {

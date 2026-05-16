@@ -18,6 +18,13 @@ pub struct ListedObject {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ListedBucket {
+    pub name: String,
+    /// ISO-8601 with offset, e.g. `2024-01-15T10:30:00+00:00`.
+    pub creation_date: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ErrorResponse {
     pub code: String,
     pub message: String,

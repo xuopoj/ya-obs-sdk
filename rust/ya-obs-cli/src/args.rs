@@ -97,8 +97,15 @@ pub enum OutputFormat {
 
 #[derive(Debug, Subcommand)]
 pub enum Cmd {
-    /// List objects under an obs:// URI.
-    Ls { uri: String },
+    /// List buckets (no URI) or list objects under an obs:// URI.
+    #[command(long_about = "List buckets when invoked with no URI; list \
+        objects under a prefix when given obs://bucket/[prefix].\n\
+        \n\
+        Examples:\n  \
+          ya-obs ls                            # list all buckets\n  \
+          ya-obs ls obs://bucket               # list every object in bucket\n  \
+          ya-obs ls obs://bucket/prefix/       # list objects under prefix")]
+    Ls { uri: Option<String> },
     /// Copy between local and obs://.
     #[command(long_about = "Copy between local paths and obs:// URIs.\n\
         \n\

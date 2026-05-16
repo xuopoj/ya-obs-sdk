@@ -3,7 +3,9 @@ use bytes::Bytes;
 use crate::config::ClientConfig;
 use crate::error::Error;
 use crate::http::HttpClient;
-use crate::models::{GetObjectResponse, HeadObjectResponse, ListedObject, PutObjectResponse};
+use crate::models::{
+    GetObjectResponse, HeadObjectResponse, ListedBucket, ListedObject, PutObjectResponse,
+};
 use crate::operations;
 
 pub struct Client {
@@ -43,6 +45,10 @@ impl Client {
         prefix: Option<&str>,
     ) -> Result<Vec<ListedObject>, Error> {
         operations::list_objects::list_objects(&self.http, bucket, prefix).await
+    }
+
+    pub async fn list_buckets(&self) -> Result<Vec<ListedBucket>, Error> {
+        operations::list_buckets::list_buckets(&self.http).await
     }
 
     pub fn presign_get_object(
