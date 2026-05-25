@@ -24,6 +24,33 @@ fn v4_header_basic_canonical_request_matches_vector() {
     assert_eq!(actual, v["expected"]["canonical_request"].as_str().unwrap());
 }
 
+#[test]
+fn v4_nonascii_key_canonical_request_is_single_encoded() {
+    let v = support::load_vector("auth", "v4_header_nonascii_key");
+    let input = &v["input"];
+
+    let headers: Vec<(String, String)> = input["headers"]
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(k, val)| (k.clone(), val.as_str().unwrap().to_string()))
+        .collect();
+
+    let actual = canonical_request(
+        input["method"].as_str().unwrap(),
+        input["url"].as_str().unwrap(),
+        &headers,
+        input["body_sha256"].as_str().unwrap(),
+    );
+
+    assert_eq!(actual, v["expected"]["canonical_request"].as_str().unwrap());
+    // Belt-and-braces: catch a regression to double-encoded form directly.
+    assert!(
+        !actual.contains("%25E6"),
+        "canonical URI is double-encoded: {actual}"
+    );
+}
+
 use ya_obs::signer::v4::{authorization_header, string_to_sign};
 
 #[test]

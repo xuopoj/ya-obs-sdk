@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "name": "v4_header_nonascii_key",
+  "description": "V4 header signing for GET on a key containing non-ASCII (Chinese) characters. Regression guard for the double-encoding bug where percent-encoded UTF-8 bytes in url.path() were re-encoded by the canonical_uri builder, producing %25XX instead of %XX and breaking the signature.",
+  "input": {
+    "method": "GET",
+    "url": "https://my-bucket.obs.cn-north-4.myhuaweicloud.com/%E6%B5%8B%E8%AF%95/file.txt",
+    "headers": {
+      "Host": "my-bucket.obs.cn-north-4.myhuaweicloud.com",
+      "x-amz-date": "20240115T103000Z",
+      "x-amz-content-sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "params": {},
+    "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "access_key": "AKIAIOSFODNN7EXAMPLE",
+    "secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    "region": "cn-north-4",
+    "service": "s3",
+    "date": "20240115",
+    "raw_key": "测试/file.txt"
+  },
+  "expected": {
+    "canonical_request": "GET\n/%E6%B5%8B%E8%AF%95/file.txt\n\nhost:my-bucket.obs.cn-north-4.myhuaweicloud.com\nx-amz-content-sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\nx-amz-date:20240115T103000Z\n\nhost;x-amz-content-sha256;x-amz-date\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

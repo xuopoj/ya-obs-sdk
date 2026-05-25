@@ -1,9 +1,9 @@
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use url::Url;
 
-/// Characters allowed in SigV4 canonical URIs — everything outside `unreserved`
-/// gets percent-encoded.
-const PATH_ENCODE_SET: &AsciiSet = &CONTROLS
+/// Characters allowed in SigV4 canonical query values — everything outside
+/// `unreserved` gets percent-encoded.
+const QUERY_ENCODE_SET: &AsciiSet = &CONTROLS
     .add(b' ')
     .add(b'"')
     .add(b'#')
@@ -31,26 +31,21 @@ const PATH_ENCODE_SET: &AsciiSet = &CONTROLS
     .add(b':')
     .add(b'@')
     .add(b'[')
-    .add(b']');
-
-fn encode_path_segment(seg: &str) -> String {
-    utf8_percent_encode(seg, PATH_ENCODE_SET).to_string()
-}
+    .add(b']')
+    .add(b'/');
 
 fn canonical_uri(url: &Url) -> String {
+    // S3-style SigV4: path is encoded once on the wire by `build_object_url`,
+    // and the canonical URI is that wire form verbatim. Re-running it through
+    // a percent-encoder would double-encode non-ASCII keys (every `%XX` would
+    // become `%25XX`), which is the source of AccessDenied on Chinese keys.
     let path = url.path();
     if path.is_empty() {
-        return "/".into();
+        "/".into()
+    } else {
+        path.to_string()
     }
-    path.split('/')
-        .map(encode_path_segment)
-        .collect::<Vec<_>>()
-        .join("/")
 }
-
-// SigV4 query encoding: same as PATH_ENCODE_SET but `/` is also encoded
-// (path encoding preserves `/` as the path separator; query values must encode it).
-const QUERY_ENCODE_SET: &AsciiSet = &PATH_ENCODE_SET.add(b'/');
 
 fn canonical_query(url: &Url) -> String {
     let mut pairs: Vec<(String, String)> = url
