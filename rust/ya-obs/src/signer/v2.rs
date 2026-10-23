@@ -15,7 +15,9 @@ fn canonicalized_obs_headers(headers: &BTreeMap<String, String>) -> String {
 }
 
 fn canonicalized_resource(bucket: &str, key: &str) -> String {
-    if key.is_empty() {
+    if bucket.is_empty() && key.is_empty() {
+        "/".to_string()
+    } else if key.is_empty() {
         format!("/{bucket}/")
     } else {
         format!("/{bucket}/{key}")

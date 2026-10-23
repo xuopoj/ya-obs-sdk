@@ -137,7 +137,7 @@ impl HttpClient {
                     .map_err(|e| Error::Config(format!("date format: {e}")))?;
                 headers.push(("Date".into(), date.clone()));
 
-                let (bucket, key) = extract_bucket_key_from_url(url);
+                let (bucket, key) = extract_bucket_key_from_url(url, &self.config)?;
                 let obs_headers: std::collections::BTreeMap<String, String> = headers
                     .iter()
                     .filter(|(k, _)| k.to_ascii_lowercase().starts_with("x-obs-"))
@@ -174,21 +174,63 @@ impl HttpClient {
     }
 }
 
-/// Extract `(bucket, key)` from a built OBS URL. Path-style URLs look like
-/// `https://obs.<region>.myhuaweicloud.com/<bucket>/<key>`; virtual-host URLs
-/// look like `https://<bucket>.obs.<region>.myhuaweicloud.com/<key>`.
-fn extract_bucket_key_from_url(url: &url::Url) -> (String, String) {
+/// Recover the resource relative to the configured endpoint, including custom hosts.
+fn extract_bucket_key_from_url(
+    url: &url::Url,
+    config: &ClientConfig,
+) -> Result<(String, String), Error> {
+    let endpoint = crate::url::build_service_url(config)?;
     let host = url.host_str().unwrap_or_default();
-    let path = url.path().trim_start_matches('/');
+    let endpoint_host = endpoint.host_str().unwrap_or_default();
+    let path = url.path().strip_prefix('/').unwrap_or(url.path());
 
-    if let Some((first_label, rest)) = host.split_once('.') {
-        if rest.starts_with("obs.") {
-            return (first_label.to_string(), path.to_string());
-        }
+    if let Some(bucket) = host.strip_suffix(&format!(".{endpoint_host}")) {
+        return Ok((bucket.to_string(), path.to_string()));
     }
 
-    match path.split_once('/') {
+    Ok(match path.split_once('/') {
         Some((b, k)) => (b.to_string(), k.to_string()),
         None => (path.to_string(), String::new()),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::AddressingStyle;
+
+    #[test]
+    fn v2_resource_matches_built_urls() {
+        for endpoint in [
+            "https://obsv3.cloud.nisco.cn",
+            "https://obs.cn-north-4.myhuaweicloud.com",
+            "http://127.0.0.1:9000",
+        ] {
+            for style in [
+                AddressingStyle::Auto,
+                AddressingStyle::Virtual,
+                AddressingStyle::Path,
+            ] {
+                if endpoint.contains("127.0.0.1") && style != AddressingStyle::Path {
+                    continue;
+                }
+                let config = ClientConfig::for_endpoint(endpoint).with_addressing_style(style);
+                let service = crate::url::build_service_url(&config).unwrap();
+                assert_eq!(
+                    extract_bucket_key_from_url(&service, &config).unwrap(),
+                    (String::new(), String::new())
+                );
+                for bucket in ["nisco-obs", "dotted.bucket"] {
+                    for key in ["", "folder/file.txt", "/leading-slash"] {
+                        let url = crate::url::build_object_url(&config, bucket, key).unwrap();
+                        assert_eq!(
+                            extract_bucket_key_from_url(&url, &config).unwrap(),
+                            (bucket.to_string(), key.to_string()),
+                            "{url}"
+                        );
+                    }
+                }
+            }
+        }
     }
 }

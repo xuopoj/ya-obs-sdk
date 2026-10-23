@@ -62,7 +62,9 @@ pub async fn run(
             (Endpoint::Remote(_), Endpoint::Remote(_)) => {
                 Err(anyhow!("server-side recursive copy not implemented"))
             }
-            _ => Err(anyhow!("cp --recursive requires one local and one obs:// side")),
+            _ => Err(anyhow!(
+                "cp --recursive requires one local and one obs:// side"
+            )),
         };
     }
 
@@ -92,7 +94,9 @@ pub async fn run(
         }
         // Any other combination (local-only, stdin-to-local, etc.) is invalid:
         // cp requires exactly one obs:// side.
-        _ => Err(anyhow!("cp requires exactly one obs:// side (use `-` for stdin/stdout)")),
+        _ => Err(anyhow!(
+            "cp requires exactly one obs:// side (use `-` for stdin/stdout)"
+        )),
     }
 }
 
@@ -114,7 +118,11 @@ async fn upload_file(client: &Client, path: &str, dst: &ObsUri, quiet: bool) -> 
     let mut buf = Vec::new();
     file.read_to_end(&mut buf).await?;
 
-    let bar = if quiet { hidden_bar() } else { bytes_bar(buf.len() as u64) };
+    let bar = if quiet {
+        hidden_bar()
+    } else {
+        bytes_bar(buf.len() as u64)
+    };
     bar.set_message(format!(
         "uploading {} -> obs://{}/{}",
         path, dst.bucket, dst.key
@@ -131,7 +139,11 @@ async fn upload_file(client: &Client, path: &str, dst: &ObsUri, quiet: bool) -> 
 async fn download_file(client: &Client, src: &ObsUri, path: &str, quiet: bool) -> Result<usize> {
     let resp = client.get_object(&src.bucket, &src.key).await?;
     let total = resp.content_length.unwrap_or(0);
-    let bar = if quiet { hidden_bar() } else { bytes_bar(total) };
+    let bar = if quiet {
+        hidden_bar()
+    } else {
+        bytes_bar(total)
+    };
     bar.set_message(format!(
         "downloading obs://{}/{} -> {}",
         src.bucket, src.key, path

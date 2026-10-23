@@ -5,6 +5,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-23
+
 ### Added
 - `ya-obs init` subcommand scaffolds a starter config at
   `~/.config/ya-obs/config.toml` (or `--path`); refuses to overwrite without
@@ -16,6 +18,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   with no URI now lists all buckets in the account; `ya-obs ls obs://bucket`
   continues to list objects. New XML test vector at
   `test-vectors/xml/list_buckets_response.json`.
+
+### Added
+- JSON output, typed exit codes, `stat`, `--quiet`, `rm --dry-run`, and stdin/stdout copy support.
+- Recursive directory copy, directory-style listing with delimiters, and shell completion for Bash and Zsh.
+
+### Fixed
+- OBS V2 signing for custom endpoints, dotted bucket names, and service-root requests.
+- Default config path consistently uses `~/.config/ya-obs/config.toml`, including on macOS.
+- SigV4 canonical URI encoding for non-ASCII keys and query encoding for slashes.
+- Empty error bodies are classified by HTTP status code.
 
 ## [0.1.1] - 2026-05-14
 

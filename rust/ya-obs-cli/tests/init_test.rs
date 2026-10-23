@@ -1,5 +1,51 @@
 use ya_obs_cli::commands::init;
 
+#[cfg(unix)]
+#[test]
+fn default_path_uses_dot_config_under_home() {
+    let home = tempfile::tempdir().unwrap();
+    assert_cmd::Command::cargo_bin("ya-obs")
+        .unwrap()
+        .env_remove("YA_OBS_CONFIG")
+        .env_remove("XDG_CONFIG_HOME")
+        .env("HOME", home.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    assert!(home.path().join(".config/ya-obs/config.toml").is_file());
+}
+
+#[test]
+fn default_path_respects_xdg_config_home() {
+    let dir = tempfile::tempdir().unwrap();
+    assert_cmd::Command::cargo_bin("ya-obs")
+        .unwrap()
+        .env_remove("YA_OBS_CONFIG")
+        .env("XDG_CONFIG_HOME", dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    assert!(dir.path().join("ya-obs/config.toml").is_file());
+}
+
+#[test]
+fn default_path_prefers_explicit_environment_override() {
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("override.toml");
+    assert_cmd::Command::cargo_bin("ya-obs")
+        .unwrap()
+        .env("YA_OBS_CONFIG", &target)
+        .env("XDG_CONFIG_HOME", dir.path().join("xdg"))
+        .arg("init")
+        .assert()
+        .success();
+
+    assert!(target.is_file());
+    assert!(!dir.path().join("xdg").exists());
+}
+
 #[test]
 fn writes_template_to_new_path() {
     let dir = tempfile::tempdir().unwrap();

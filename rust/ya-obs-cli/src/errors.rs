@@ -56,7 +56,11 @@ pub fn display(err: &anyhow::Error, output: OutputFormat) {
         }
         OutputFormat::Json => {
             let (code, message, status) = if let Some(obs) = err.downcast_ref::<ya_obs::Error>() {
-                (obs.code().to_string(), obs.message().to_string(), obs.status())
+                (
+                    obs.code().to_string(),
+                    obs.message().to_string(),
+                    obs.status(),
+                )
             } else if err.downcast_ref::<ConfigError>().is_some() {
                 ("Config".to_string(), err.to_string(), 0)
             } else {

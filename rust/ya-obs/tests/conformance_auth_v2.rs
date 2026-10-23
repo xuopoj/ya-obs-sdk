@@ -4,6 +4,14 @@ use std::collections::BTreeMap;
 use ya_obs::signer::v2::{authorization_header, string_to_sign};
 
 #[test]
+fn v2_list_buckets_signs_service_root() {
+    assert_eq!(
+        string_to_sign("GET", "", "", "date", &BTreeMap::new(), "", ""),
+        "GET\n\n\ndate\n/"
+    );
+}
+
+#[test]
 fn v2_header_basic_string_to_sign_matches_vector() {
     let v = support::load_vector("auth", "v2_header_basic");
     let input = &v["input"];

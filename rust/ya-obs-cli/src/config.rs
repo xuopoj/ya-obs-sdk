@@ -41,7 +41,9 @@ pub fn default_config_path() -> Option<PathBuf> {
     }
     let dir = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
-        .or_else(dirs::config_dir)?;
+        // Use the documented XDG layout on every platform. On macOS,
+        // dirs::config_dir() points to ~/Library/Application Support instead.
+        .or_else(|| dirs::home_dir().map(|home| home.join(".config")))?;
     Some(dir.join("ya-obs").join("config.toml"))
 }
 
