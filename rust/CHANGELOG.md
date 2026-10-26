@@ -5,6 +5,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Publishing options for single local-file uploads below 100 MiB: `--no-clobber`,
+  `--acl private|public-read`, `--content-type`, `--cache-control`,
+  `--content-disposition`, and repeatable `--metadata key=value`.
+- `acl set` changes one object's ACL without rewriting its contents;
+  `bucket-versioning` reads the bucket's versioning state.
+- `stat` includes cache control, content disposition, and user metadata.
+- Exit codes 7 (HTTP 409/412 conflict) and 8 (unsupported protection/options).
+- An Actions-only isolated publishing acceptance workflow and pinned installation guide.
+
+### Fixed
+- OBS V2 signs Content-Type and ACL/versioning/multipart subresources.
+- Signed HTTP requests reject redirects instead of treating them as successful uploads.
+- Release builds use the requested tag and validate tests, all checksums and the
+  Linux binary before completing a draft release and optionally publishing it.
+
+
 ## [0.1.2] - 2026-10-23
 
 ### Added

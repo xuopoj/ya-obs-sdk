@@ -1,6 +1,6 @@
 [package]
 name = "ya-obs"
-version = "0.1.2"
+version = "0.1.3-dev"
 description = "A clean Rust SDK for Huawei Cloud OBS"
 edition.workspace = true
 license.workspace = true

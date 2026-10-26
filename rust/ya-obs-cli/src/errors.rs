@@ -37,6 +37,10 @@ fn classify_obs(e: &ya_obs::Error) -> u8 {
         E::Client { status, .. } if *status == 401 || *status == 403 => 5,
         E::Server { status, .. } if *status >= 500 => 6,
         E::Config(_) => 3,
+        E::Client {
+            status: 409 | 412, ..
+        } => 7,
+        E::Unsupported(_) => 8,
         _ => 1,
     }
 }

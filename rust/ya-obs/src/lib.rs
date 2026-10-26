@@ -18,4 +18,5 @@ pub use client::Client;
 pub use config::{AddressingStyle, ClientConfig, SigningVersion};
 pub use credentials::Credentials;
 pub use error::Error;
+pub use models::{BucketVersioning, ObjectAcl, PutObjectOptions};
 pub type Result<T> = std::result::Result<T, Error>;

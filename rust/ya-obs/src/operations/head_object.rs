@@ -16,6 +16,25 @@ pub async fn head_object(
         .await?;
 
     Ok(HeadObjectResponse {
+        cache_control: resp
+            .headers()
+            .get("cache-control")
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_owned),
+        content_disposition: resp
+            .headers()
+            .get("content-disposition")
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_owned),
+        metadata: resp
+            .headers()
+            .iter()
+            .filter_map(|(k, v)| {
+                k.as_str()
+                    .strip_prefix("x-obs-meta-")
+                    .and_then(|key| v.to_str().ok().map(|v| (key.to_owned(), v.to_owned())))
+            })
+            .collect(),
         etag: resp
             .headers()
             .get("etag")

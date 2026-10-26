@@ -1,0 +1,35 @@
+name: publishing acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      bucket:
+        description: Dedicated test bucket (creates public objects under _ya-obs-acceptance/UUID/)
+        required: true
+        type: string
+      region:
+        description: Test bucket region
+        default: cn-southwest-2
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    environment: obs-publishing-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust -> target
+      - name: Build CLI
+        working-directory: rust
+        run: cargo build --locked -p ya-obs-cli
+      - name: Validate isolated publishing
+        env:
+          HUAWEICLOUD_SDK_AK: ${{ secrets.OBS_TEST_ACCESS_KEY }}
+          HUAWEICLOUD_SDK_SK: ${{ secrets.OBS_TEST_SECRET_KEY }}
+          TEST_BUCKET: ${{ inputs.bucket }}
+          TEST_REGION: ${{ inputs.region }}
+        run: python3 scripts/accept_publishing.py --execute --cli "$PWD/rust/target/debug/ya-obs" --bucket "$TEST_BUCKET" --region "$TEST_REGION"

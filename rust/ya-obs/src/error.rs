@@ -55,6 +55,9 @@ pub enum Error {
     #[error("XML parse error: {0}")]
     Xml(#[from] quick_xml::DeError),
 
+    #[error("unsupported protection or upload options: {0}")]
+    Unsupported(String),
+
     #[error("config error: {0}")]
     Config(String),
 }
@@ -70,6 +73,7 @@ impl Error {
             Error::Transport(_) => "Transport",
             Error::Xml(_) => "XmlParse",
             Error::Config(_) => "Config",
+            Error::Unsupported(_) => "Unsupported",
         }
     }
 
@@ -82,7 +86,7 @@ impl Error {
             | Error::Server { message, .. } => message,
             Error::Transport(_) => "transport error",
             Error::Xml(_) => "xml parse error",
-            Error::Config(_) => "config error",
+            Error::Config(message) | Error::Unsupported(message) => message,
         }
     }
 
@@ -109,6 +113,7 @@ pub fn classify_error(status: u16, xml: &str) -> Error {
             if xml.trim().is_empty() {
                 let (code, message) = match status {
                     404 => ("NoSuchKey", "object not found (empty body)"),
+                    409 => ("Conflict", "object already exists (empty body)"),
                     403 => ("AccessDenied", "access denied (empty body)"),
                     _ => ("HttpError", "error response with empty body"),
                 };

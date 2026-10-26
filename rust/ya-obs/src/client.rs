@@ -28,6 +28,30 @@ impl Client {
         operations::put_object::put_object(&self.http, bucket, key, body).await
     }
 
+    pub async fn put_object_with_options(
+        &self,
+        bucket: &str,
+        key: &str,
+        body: Bytes,
+        options: &crate::PutObjectOptions,
+    ) -> Result<PutObjectResponse, Error> {
+        operations::put_object::put_object_with_options(&self.http, bucket, key, body, options)
+            .await
+    }
+
+    pub async fn bucket_versioning(&self, bucket: &str) -> Result<crate::BucketVersioning, Error> {
+        operations::publishing::bucket_versioning(&self.http, bucket).await
+    }
+
+    pub async fn set_object_acl(
+        &self,
+        bucket: &str,
+        key: &str,
+        acl: crate::ObjectAcl,
+    ) -> Result<(), Error> {
+        operations::publishing::set_object_acl(&self.http, bucket, key, acl).await
+    }
+
     pub async fn get_object(&self, bucket: &str, key: &str) -> Result<GetObjectResponse, Error> {
         operations::get_object::get_object(&self.http, bucket, key).await
     }

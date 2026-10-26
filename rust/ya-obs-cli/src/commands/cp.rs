@@ -36,6 +36,34 @@ pub async fn run(
     output: OutputFormat,
     quiet: bool,
 ) -> Result<()> {
+    run_with_options(
+        client,
+        src,
+        dst,
+        recursive,
+        output,
+        quiet,
+        &ya_obs::PutObjectOptions::default(),
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn run_with_options(
+    client: &Client,
+    src: &str,
+    dst: &str,
+    recursive: bool,
+    output: OutputFormat,
+    quiet: bool,
+    options: &ya_obs::PutObjectOptions,
+) -> Result<()> {
+    let has_options = options != &ya_obs::PutObjectOptions::default();
+    if has_options
+        && (recursive || src == "-" || src.starts_with("obs://") || !dst.starts_with("obs://"))
+    {
+        return Err(ya_obs::Error::Unsupported("upload options require a single local-file-to-OBS copy; recursive, stdin, downloads and server-side copy are unsupported".into()).into());
+    }
     // `-` means stdin when used as src, stdout when used as dst.
     let src_ep = if src == "-" {
         Endpoint::Stdin
@@ -70,7 +98,7 @@ pub async fn run(
 
     match (src_ep, dst_ep) {
         (Endpoint::Local(path), Endpoint::Remote(u)) => {
-            let n = upload_file(client, &path, &u, quiet).await?;
+            let n = upload_file_with_options(client, &path, &u, quiet, options).await?;
             emit_summary(output, src, dst, n, n >= MULTIPART_THRESHOLD);
             Ok(())
         }
@@ -114,6 +142,32 @@ fn emit_summary(output: OutputFormat, src: &str, dst: &str, bytes: usize, multip
 }
 
 async fn upload_file(client: &Client, path: &str, dst: &ObsUri, quiet: bool) -> Result<usize> {
+    upload_file_with_options(
+        client,
+        path,
+        dst,
+        quiet,
+        &ya_obs::PutObjectOptions::default(),
+    )
+    .await
+}
+
+async fn upload_file_with_options(
+    client: &Client,
+    path: &str,
+    dst: &ObsUri,
+    quiet: bool,
+    options: &ya_obs::PutObjectOptions,
+) -> Result<usize> {
+    if options != &ya_obs::PutObjectOptions::default() {
+        let metadata = tokio::fs::metadata(path).await?;
+        if !metadata.is_file() || metadata.len() >= MULTIPART_THRESHOLD as u64 {
+            return Err(ya_obs::Error::Unsupported(
+                "upload options require a regular file below 100 MiB".into(),
+            )
+            .into());
+        }
+    }
     let mut file = File::open(path).await?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf).await?;
@@ -129,7 +183,7 @@ async fn upload_file(client: &Client, path: &str, dst: &ObsUri, quiet: bool) -> 
     ));
     let len = buf.len();
     client
-        .put_object(&dst.bucket, &dst.key, Bytes::from(buf))
+        .put_object_with_options(&dst.bucket, &dst.key, Bytes::from(buf), options)
         .await?;
     bar.inc(len as u64);
     bar.finish_with_message("done");

@@ -17,6 +17,22 @@ pub async fn put_object(
     key: &str,
     body: Bytes,
 ) -> Result<PutObjectResponse, Error> {
+    put_object_with_options(http, bucket, key, body, &crate::PutObjectOptions::default()).await
+}
+
+pub async fn put_object_with_options(
+    http: &HttpClient,
+    bucket: &str,
+    key: &str,
+    body: Bytes,
+    options: &crate::PutObjectOptions,
+) -> Result<PutObjectResponse, Error> {
+    let has_options = options != &crate::PutObjectOptions::default();
+    if has_options && (key.is_empty() || body.len() >= MULTIPART_THRESHOLD) {
+        return Err(Error::Unsupported(
+            "upload options require a nonempty key and a single PUT below 100 MiB".into(),
+        ));
+    }
     if body.len() >= MULTIPART_THRESHOLD {
         return multipart::upload(
             http,
@@ -30,7 +46,42 @@ pub async fn put_object(
     }
 
     let url = build_object_url(&http.config, bucket, key)?;
-    let headers = vec![("Content-Length".to_string(), body.len().to_string())];
+    let mut headers = vec![("Content-Length".to_string(), body.len().to_string())];
+    for (name, value) in [
+        ("Content-Type", &options.content_type),
+        ("Cache-Control", &options.cache_control),
+        ("Content-Disposition", &options.content_disposition),
+    ] {
+        if let Some(value) = value {
+            headers.push((name.into(), value.clone()));
+        }
+    }
+    if let Some(acl) = options.acl {
+        headers.push(("x-obs-acl".into(), acl.as_str().into()));
+    }
+    if options.no_clobber {
+        headers.push(("x-obs-forbid-overwrite".into(), "true".into()));
+    }
+    for (key, value) in &options.metadata {
+        if key.is_empty()
+            || !key
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
+        {
+            return Err(Error::Config(
+                "metadata keys must use lowercase ASCII letters, digits, hyphens or underscores"
+                    .into(),
+            ));
+        }
+        headers.push((format!("x-obs-meta-{key}"), value.clone()));
+    }
+    for (_, value) in &headers {
+        reqwest::header::HeaderValue::from_str(value)
+            .map_err(|_| Error::Config("invalid upload header value".into()))?;
+    }
+    if options.no_clobber {
+        super::publishing::check_no_clobber(http, bucket).await?;
+    }
     let resp = http.send(Method::PUT, url, headers, body).await?;
 
     let etag = resp

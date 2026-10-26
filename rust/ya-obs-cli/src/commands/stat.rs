@@ -22,6 +22,17 @@ pub async fn run(client: &Client, uri: &str, output: OutputFormat) -> Result<()>
             println!("etag:          {}", meta.etag);
             println!("content_type:  {}", ct);
             println!("request_id:    {}", rid);
+            println!(
+                "cache_control: {}",
+                meta.cache_control.as_deref().unwrap_or("-")
+            );
+            println!(
+                "content_disposition: {}",
+                meta.content_disposition.as_deref().unwrap_or("-")
+            );
+            for (key, value) in &meta.metadata {
+                println!("metadata.{key}: {value}");
+            }
         }
         OutputFormat::Json => {
             let line = serde_json::json!({
@@ -31,6 +42,9 @@ pub async fn run(client: &Client, uri: &str, output: OutputFormat) -> Result<()>
                 "etag": meta.etag,
                 "content_type": meta.content_type,
                 "request_id": meta.request_id,
+                "cache_control": meta.cache_control,
+                "content_disposition": meta.content_disposition,
+                "metadata": meta.metadata,
             });
             println!("{line}");
         }

@@ -24,6 +24,7 @@ impl HttpClient {
     pub fn new(config: ClientConfig) -> Result<Self, Error> {
         let inner = ReqwestClient::builder()
             .user_agent(config.user_agent.clone())
+            .redirect(reqwest::redirect::Policy::none())
             .connect_timeout(config.connect_timeout)
             .timeout(config.read_timeout)
             .danger_accept_invalid_certs(config.tls_verify_disabled)
@@ -58,7 +59,7 @@ impl HttpClient {
             let resp = self.inner.execute(signed).await.map_err(Error::Transport)?;
 
             let status = resp.status().as_u16();
-            if status < 400 {
+            if (200..300).contains(&status) {
                 return Ok(resp);
             }
 
@@ -137,7 +138,34 @@ impl HttpClient {
                     .map_err(|e| Error::Config(format!("date format: {e}")))?;
                 headers.push(("Date".into(), date.clone()));
 
-                let (bucket, key) = extract_bucket_key_from_url(url, &self.config)?;
+                let (bucket, mut key) = extract_bucket_key_from_url(url, &self.config)?;
+                let subresources: Vec<_> = url
+                    .query_pairs()
+                    .filter(|(k, _)| {
+                        matches!(
+                            k.as_ref(),
+                            "acl" | "versioning" | "uploads" | "uploadId" | "partNumber"
+                        )
+                    })
+                    .map(|(k, v)| {
+                        if v.is_empty() {
+                            k.into_owned()
+                        } else {
+                            format!("{k}={v}")
+                        }
+                    })
+                    .collect();
+                if !subresources.is_empty() {
+                    let mut subresources = subresources;
+                    subresources.sort();
+                    key.push('?');
+                    key.push_str(&subresources.join("&"));
+                }
+                let content_type = headers
+                    .iter()
+                    .find(|(k, _)| k.eq_ignore_ascii_case("content-type"))
+                    .map(|(_, v)| v.as_str())
+                    .unwrap_or("");
                 let obs_headers: std::collections::BTreeMap<String, String> = headers
                     .iter()
                     .filter(|(k, _)| k.to_ascii_lowercase().starts_with("x-obs-"))
@@ -147,7 +175,7 @@ impl HttpClient {
                 v2::authorization_header(
                     method.as_str(),
                     "",
-                    "",
+                    content_type,
                     &date,
                     &obs_headers,
                     &bucket,
@@ -198,6 +226,40 @@ fn extract_bucket_key_from_url(
 mod tests {
     use super::*;
     use crate::config::AddressingStyle;
+
+    #[test]
+    fn v2_request_signs_content_type_and_subresources() {
+        let cfg = ClientConfig::for_endpoint("https://obs.example.com")
+            .with_credentials(Credentials::new("AK", "SK"))
+            .with_signing_version(SigningVersion::V2);
+        let client = HttpClient::new(cfg).unwrap();
+        for (url, key) in [
+            ("https://bucket.obs.example.com/key?acl", "key?acl"),
+            ("https://bucket.obs.example.com/?versioning", "?versioning"),
+        ] {
+            let request = client
+                .sign_request(
+                    &Method::PUT,
+                    &url::Url::parse(url).unwrap(),
+                    &[("Content-Type".into(), "application/zip".into())],
+                    &Bytes::new(),
+                )
+                .unwrap();
+            let date = request.headers()["date"].to_str().unwrap();
+            let expected = v2::authorization_header(
+                "PUT",
+                "",
+                "application/zip",
+                date,
+                &std::collections::BTreeMap::new(),
+                "bucket",
+                key,
+                "AK",
+                "SK",
+            );
+            assert_eq!(request.headers()["authorization"], expected);
+        }
+    }
 
     #[test]
     fn v2_resource_matches_built_urls() {

@@ -15,12 +15,14 @@ use clap::{Parser, Subcommand};
         3   config error (missing creds/region, bad signing version)\n  \
         4   not found (NoSuchKey, NoSuchBucket)\n  \
         5   access denied (AccessDenied, 401, 403)\n  \
-        6   server error (5xx)\n\
+        6   server error (5xx)\n  \
+        7   conflict (409/412)\n  \
+        8   unsupported protection or upload combination\n\
         \n\
         IDEMPOTENCY & RETRIES\n\
         \n  \
         The library retries 408/429/5xx with exponential backoff. The CLI\n  \
-        itself does not retry beyond that. PUT and DELETE are safe to retry;\n  \
+        itself does not retry beyond that. Protected PUT retries keep all options;\n  \
         OBS DELETE on a missing key is idempotent (returns success).\n\
         \n\
         JSON OUTPUT\n\
@@ -138,7 +140,16 @@ pub enum Cmd {
         /// Recursively copy a directory tree (local↔obs only).
         #[arg(long, short = 'r')]
         recursive: bool,
+        #[command(flatten)]
+        upload: UploadArgs,
     },
+    /// Set the ACL of a single object without changing its contents.
+    Acl {
+        #[command(subcommand)]
+        command: AclCmd,
+    },
+    /// Read bucket versioning status (requires a bucket-only URI).
+    BucketVersioning { uri: String },
     /// Delete an object.
     #[command(long_about = "Delete an object.\n\
         \n\
@@ -199,4 +210,76 @@ pub enum Cmd {
 pub enum CompletionShell {
     Bash,
     Zsh,
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub enum Acl {
+    Private,
+    PublicRead,
+}
+impl From<Acl> for ya_obs::ObjectAcl {
+    fn from(value: Acl) -> Self {
+        match value {
+            Acl::Private => Self::Private,
+            Acl::PublicRead => Self::PublicRead,
+        }
+    }
+}
+#[derive(Debug, Subcommand)]
+pub enum AclCmd {
+    Set {
+        uri: String,
+        #[arg(long, value_enum)]
+        acl: Acl,
+    },
+}
+
+#[derive(Debug, Default, clap::Args)]
+pub struct UploadArgs {
+    /// Atomically reject an existing key. Requires an unversioned OBS bucket.
+    #[arg(long)]
+    pub no_clobber: bool,
+    /// Explicit object ACL; omitted preserves OBS defaults.
+    #[arg(long, value_enum)]
+    pub acl: Option<Acl>,
+    #[arg(long)]
+    pub content_type: Option<String>,
+    #[arg(long)]
+    pub cache_control: Option<String>,
+    #[arg(long)]
+    pub content_disposition: Option<String>,
+    /// User metadata as key=value; repeat for multiple keys (lowercase ASCII keys).
+    #[arg(long = "metadata", value_parser = parse_metadata)]
+    pub metadata: Vec<(String, String)>,
+}
+fn parse_metadata(s: &str) -> Result<(String, String), String> {
+    let (key, value) = s.split_once('=').ok_or("metadata must be key=value")?;
+    if key.is_empty()
+        || !key
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
+    {
+        return Err(
+            "metadata key must use lowercase ASCII letters, digits, hyphens or underscores".into(),
+        );
+    }
+    Ok((key.into(), value.into()))
+}
+impl UploadArgs {
+    pub fn options(&self) -> anyhow::Result<ya_obs::PutObjectOptions> {
+        let mut metadata = std::collections::BTreeMap::new();
+        for (k, v) in &self.metadata {
+            if metadata.insert(k.clone(), v.clone()).is_some() {
+                return Err(ya_obs::Error::Config("duplicate metadata key".into()).into());
+            }
+        }
+        Ok(ya_obs::PutObjectOptions {
+            no_clobber: self.no_clobber,
+            acl: self.acl.map(Into::into),
+            content_type: self.content_type.clone(),
+            cache_control: self.cache_control.clone(),
+            content_disposition: self.content_disposition.clone(),
+            metadata,
+        })
+    }
 }

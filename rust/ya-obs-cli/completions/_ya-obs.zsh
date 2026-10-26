@@ -46,6 +46,7 @@ _ya-obs() {
     local prev="${words[CURRENT-1]}"
     case "$prev" in
         --output|-o)            _values 'output' text json; return 0 ;;
+        --acl)                  _values 'ACL' private public-read; return 0 ;;
         --signing-version)      _values 'signing version' v4 v2; return 0 ;;
         --profile|--config|--region|--endpoint|--access-key|--secret-key|--path|--expires)
             _files
@@ -65,6 +66,8 @@ _ya-obs() {
                 'cp[Copy between local and obs://]' \
                 'cat[Print object body]' \
                 'stat[Fetch object metadata]' \
+                'acl[Set an object ACL]' \
+                'bucket-versioning[Read bucket versioning status]' \
                 'rm[Delete an object]' \
                 'presign[Generate a presigned GET URL]' \
                 'init[Write a starter config file]' \

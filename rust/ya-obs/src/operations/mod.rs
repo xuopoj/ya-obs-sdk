@@ -4,4 +4,5 @@ pub mod head_object;
 pub mod list_buckets;
 pub mod list_objects;
 pub mod presign;
+pub mod publishing;
 pub mod put_object;

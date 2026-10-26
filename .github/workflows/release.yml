@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   build:
@@ -42,6 +43,8 @@ jobs:
             archive: zip
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -65,7 +68,7 @@ jobs:
 
       - name: Build
         working-directory: rust
-        run: cargo build --release --target ${{ matrix.target }} -p ya-obs-cli
+        run: cargo build --locked --release --target ${{ matrix.target }} -p ya-obs-cli
 
       - name: Package (unix)
         if: matrix.archive == 'tar.gz'
@@ -80,7 +83,8 @@ jobs:
         shell: pwsh
         run: |
           Compress-Archive -Path ya-obs.exe -DestinationPath ya-obs-${{ matrix.target }}.zip
-          (Get-FileHash ya-obs-${{ matrix.target }}.zip -Algorithm SHA256).Hash | Out-File ya-obs-${{ matrix.target }}.zip.sha256 -Encoding ASCII
+          $archive = "ya-obs-${{ matrix.target }}.zip"
+          "$((Get-FileHash $archive -Algorithm SHA256).Hash.ToLower())  $archive" | Out-File "$archive.sha256" -Encoding ASCII
 
       - uses: actions/upload-artifact@v4
         with:
@@ -95,37 +99,85 @@ jobs:
 
   release:
     name: publish release
-    needs: build
+    needs: [build, validate]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
 
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
 
-      - name: List artifacts
-        run: ls -la dist/
+      - name: Verify artifacts and smoke-test Linux binary
+        env:
+          TAG: ${{ inputs.tag }}
+        working-directory: dist
+        run: |
+          test "$(find . -maxdepth 1 -type f | wc -l)" -eq 10
+          for target in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu aarch64-apple-darwin x86_64-apple-darwin x86_64-pc-windows-msvc; do
+            case "$target" in *windows*) ext=zip ;; *) ext=tar.gz ;; esac
+            test -s "ya-obs-$target.$ext"
+            sha256sum --check "ya-obs-$target.$ext.sha256"
+          done
+          tar -xzf ya-obs-x86_64-unknown-linux-gnu.tar.gz
+          test "$(./ya-obs --version)" = "ya-obs ${TAG#ya-obs-cli-v}"
+          ./ya-obs cp --help
+          rm ya-obs
 
-      - name: Create or update release
+      - name: Create or complete draft release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          KEEP_DRAFT: ${{ inputs.draft }}
         run: |
-          TAG="${{ inputs.tag }}"
-          DRAFT_FLAG=""
-          if [ "${{ inputs.draft }}" = "true" ]; then
-            DRAFT_FLAG="--draft"
+          set -euo pipefail
+          git show-ref --verify "refs/tags/$TAG"
+          test "$(git rev-parse HEAD)" = "$(git rev-list -n 1 "$TAG")"
+          VERSION="${TAG#ya-obs-cli-v}"
+          export VERSION
+          python3 - <<'PYNOTES'
+          import os, pathlib
+          version = os.environ['VERSION']
+          text = pathlib.Path('rust/CHANGELOG.md').read_text()
+          marker = f'## [{version}] - '
+          if marker not in text:
+              raise SystemExit('Missing versioned release notes')
+          notes = text.split(marker, 1)[1].split('\n', 1)[1].split('\n## [', 1)[0].strip()
+          if not notes:
+              raise SystemExit('Empty release notes')
+          pathlib.Path('release-notes.md').write_text(notes + '\n')
+          PYNOTES
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            test "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = true
+            gh release edit "$TAG" --notes-file release-notes.md
+          else
+            gh release create "$TAG" --verify-tag --draft --title "$TAG" --notes-file release-notes.md
+          fi
+          gh release upload "$TAG" dist/* --clobber
+          test "$(gh release view "$TAG" --json assets --jq '.assets | length')" -eq 10
+          if [ "$KEEP_DRAFT" = false ]; then
+            ACCEPTED=$(gh run list --workflow publishing-acceptance.yml --commit "$(git rev-parse HEAD)" --status success --limit 1 --json databaseId --jq 'length')
+            test "$ACCEPTED" -eq 1
+            gh release edit "$TAG" --draft=false --latest
           fi
 
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG exists, uploading assets"
-            gh release upload "$TAG" dist/* --clobber
-          else
-            echo "Creating release $TAG"
-            gh release create "$TAG" \
-              --title "$TAG" \
-              --notes "Built from $(git rev-parse --short HEAD). See rust/CHANGELOG.md for details." \
-              $DRAFT_FLAG \
-              dist/*
-          fi
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust -> target
+      - working-directory: rust
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --locked --workspace --all-targets -- -D warnings
+          cargo test --locked --workspace --all-targets

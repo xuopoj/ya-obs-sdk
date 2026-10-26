@@ -40,6 +40,10 @@ _ya_obs() {
             COMPREPLY=($(compgen -W "text json" -- "$cur"))
             return 0
             ;;
+        --acl)
+            COMPREPLY=($(compgen -W "private public-read" -- "$cur"))
+            return 0
+            ;;
         --signing-version)
             COMPREPLY=($(compgen -W "v4 v2" -- "$cur"))
             return 0
@@ -77,7 +81,7 @@ _ya_obs() {
         if [[ "$cur" == -* ]]; then
             COMPREPLY=($(compgen -W "--help --version --profile --config --region --endpoint --access-key --secret-key --signing-version --insecure --output --quiet -o -q -h -V" -- "$cur"))
         else
-            COMPREPLY=($(compgen -W "ls cp cat stat rm presign init completion help" -- "$cur"))
+            COMPREPLY=($(compgen -W "ls cp cat stat rm presign acl bucket-versioning init completion help" -- "$cur"))
         fi
         return 0
     fi
@@ -86,6 +90,8 @@ _ya_obs() {
     if [[ "$cur" == -* ]]; then
         local global="--help --profile --config --region --endpoint --access-key --secret-key --signing-version --insecure --output --quiet -o -q -h"
         case "$sub" in
+            cp)      COMPREPLY=($(compgen -W "$global --recursive -r --no-clobber --acl --content-type --cache-control --content-disposition --metadata" -- "$cur")) ;;
+            acl)     COMPREPLY=($(compgen -W "$global --acl" -- "$cur")) ;;
             ls)      COMPREPLY=($(compgen -W "$global --recursive -r" -- "$cur")) ;;
             rm)      COMPREPLY=($(compgen -W "$global --dry-run" -- "$cur")) ;;
             presign) COMPREPLY=($(compgen -W "$global --expires" -- "$cur")) ;;

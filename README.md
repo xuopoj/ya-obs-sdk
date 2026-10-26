@@ -165,3 +165,6 @@ async with AsyncClient(access_key="...", secret_key="...", region="cn-north-4") 
 
 - `docs/spec/` — language-agnostic API specification
 - `test-vectors/` — conformance test fixtures
+
+For protected public artifact uploads and pinned GitHub Actions installation, see
+[CLI publishing](docs/cli-publishing.md).

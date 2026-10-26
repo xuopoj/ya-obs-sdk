@@ -154,7 +154,51 @@ async fn run(cli: Cli) -> Result<()> {
             src,
             dst,
             recursive,
-        } => commands::cp::run(&client, src, dst, *recursive, out, quiet).await?,
+            upload,
+        } => {
+            commands::cp::run_with_options(
+                &client,
+                src,
+                dst,
+                *recursive,
+                out,
+                quiet,
+                &upload.options()?,
+            )
+            .await?
+        }
+        Cmd::Acl { command } => match command {
+            ya_obs_cli::args::AclCmd::Set { uri, acl } => {
+                let uri: ya_obs_cli::obs_uri::ObsUri = uri.parse()?;
+                client
+                    .set_object_acl(&uri.bucket, &uri.key, (*acl).into())
+                    .await?;
+                if out == ya_obs_cli::args::OutputFormat::Json {
+                    println!(
+                        "{}",
+                        serde_json::json!({"ok":true,"bucket":uri.bucket,"key":uri.key,"acl": ya_obs::ObjectAcl::from(*acl).as_str()})
+                    );
+                }
+            }
+        },
+        Cmd::BucketVersioning { uri } => {
+            let uri: ya_obs_cli::obs_uri::ObsUri = uri.parse()?;
+            if !uri.key.is_empty() {
+                return Err(ya_obs::Error::Config(
+                    "bucket-versioning requires a bucket-only URI".into(),
+                )
+                .into());
+            }
+            let status = client.bucket_versioning(&uri.bucket).await?;
+            if out == ya_obs_cli::args::OutputFormat::Json {
+                println!(
+                    "{}",
+                    serde_json::json!({"bucket":uri.bucket,"versioning":status.as_str()})
+                );
+            } else {
+                println!("{}", status.as_str());
+            }
+        }
         Cmd::CompleteObs { input } => commands::completion::complete_obs(&client, input).await?,
         Cmd::Init { .. } | Cmd::Completion { .. } => unreachable!("handled above"),
     }

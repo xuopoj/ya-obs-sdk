@@ -64,8 +64,52 @@ pub struct GetObjectResponse {
 
 #[derive(Debug, Clone)]
 pub struct HeadObjectResponse {
+    pub cache_control: Option<String>,
+    pub content_disposition: Option<String>,
+    pub metadata: std::collections::BTreeMap<String, String>,
     pub etag: String,
     pub content_length: Option<u64>,
     pub content_type: Option<String>,
     pub request_id: Option<String>,
+}
+
+/// Explicit options for single-request uploads. Non-default options reject multipart.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PutObjectOptions {
+    pub no_clobber: bool,
+    pub acl: Option<ObjectAcl>,
+    pub content_type: Option<String>,
+    pub cache_control: Option<String>,
+    pub content_disposition: Option<String>,
+    pub metadata: std::collections::BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObjectAcl {
+    Private,
+    PublicRead,
+}
+impl ObjectAcl {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Private => "private",
+            Self::PublicRead => "public-read",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BucketVersioning {
+    Disabled,
+    Enabled,
+    Suspended,
+}
+impl BucketVersioning {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Disabled => "Disabled",
+            Self::Enabled => "Enabled",
+            Self::Suspended => "Suspended",
+        }
+    }
 }

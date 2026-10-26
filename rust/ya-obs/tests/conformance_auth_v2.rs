@@ -116,3 +116,33 @@ fn v2_presign_basic_url_has_required_params() {
         assert!(qs.contains_key(k.as_str().unwrap()));
     }
 }
+
+#[test]
+fn publishing_content_type_and_bucket_subresources_are_signed() {
+    assert_eq!(
+        string_to_sign(
+            "PUT",
+            "",
+            "application/zip",
+            "date",
+            &BTreeMap::new(),
+            "bucket",
+            "key"
+        ),
+        "PUT\n\napplication/zip\ndate\n/bucket/key"
+    );
+    for subresource in ["acl", "versioning"] {
+        assert_eq!(
+            string_to_sign(
+                "GET",
+                "",
+                "",
+                "date",
+                &BTreeMap::new(),
+                "bucket",
+                &format!("?{subresource}")
+            ),
+            format!("GET\n\n\ndate\n/bucket/?{subresource}")
+        );
+    }
+}
